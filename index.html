@@ -125,6 +125,9 @@
             </div>
             <div class="card">
                 <h3>📜 لیستی فرۆشتنەکان</h3>
+                <div style="margin-bottom: 15px;">
+                    <input type="text" id="report-search" placeholder="🔍 گەڕان لە ناو یان بەروار..." onkeyup="renderReports()">
+                </div>
                 <div style="overflow-x: auto;">
                     <table>
                         <thead>
@@ -293,8 +296,6 @@
         let tc = 0, ts = 0, tp = 0;
         
         const fragment = document.createDocumentFragment();
-        
-        // فلتەرکردنی لیستەکە پێش نیشاندان
         const filteredInventory = inventory.filter(item => item.name.toLowerCase().includes(query));
 
         filteredInventory.forEach(item => {
@@ -360,14 +361,17 @@
         const now = new Date();
         let d = 0, m = 0, y = 0;
         const tbody = document.getElementById('sales-history-table');
+        const query = document.getElementById('report-search') ? document.getElementById('report-search').value.toLowerCase() : "";
         tbody.innerHTML = "";
 
-        sales.sort((a,b) => b.date - a.date).forEach(s => {
-            const sDate = new Date(s.date);
-            if(sDate.toDateString() === now.toDateString()) d += s.profit;
-            if(sDate.getMonth() === now.getMonth() && sDate.getFullYear() === now.getFullYear()) m += s.profit;
-            if(sDate.getFullYear() === now.getFullYear()) y += s.profit;
+        // فلتەرکردنی لیستەکە بۆ گەڕان
+        const filteredSales = sales.filter(s => {
+            const sDateStr = new Date(s.date).toLocaleString('ku-IQ');
+            return s.name.toLowerCase().includes(query) || sDateStr.includes(query);
+        });
 
+        filteredSales.sort((a,b) => b.date - a.date).forEach(s => {
+            const sDate = new Date(s.date);
             const dt = sDate.toLocaleString('ku-IQ');
             tbody.innerHTML += `<tr>
                 <td>${dt}</td>
@@ -377,6 +381,14 @@
                 <td style="color:green; font-weight:bold">${s.profit.toLocaleString()}</td>
                 <td><button onclick="deleteSale(${s.id})" style="color:red; border:none; background:none; cursor:pointer;">سڕینەوە</button></td>
             </tr>`;
+        });
+
+        // حیسابکردنی قازانجەکان هەمیشە لەسەر هەموو داتاکانە
+        sales.forEach(s => {
+            const sDate = new Date(s.date);
+            if(sDate.toDateString() === now.toDateString()) d += s.profit;
+            if(sDate.getMonth() === now.getMonth() && sDate.getFullYear() === now.getFullYear()) m += s.profit;
+            if(sDate.getFullYear() === now.getFullYear()) y += s.profit;
         });
 
         document.getElementById('p-day').innerText = d.toLocaleString();
