@@ -2,7 +2,7 @@
 <html lang="ku" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>Azhy Cosmetic - Clean Version</title>
+    <title>Azhy Cosmetic - Full Inventory System</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;700&display=swap');
         :root { --p: #0f172a; --a: #3b82f6; --s: #10b981; --bg: #f1f5f9; --d: #ef4444; --w: #f59e0b; }
@@ -26,7 +26,6 @@
         .item-card img { width: 100%; height: 100px; object-fit: cover; border-radius: 8px; background: #eee; }
         .exp-badge { position: absolute; top: 5px; right: 5px; color: white; font-size: 10px; padding: 2px 6px; border-radius: 5px; font-weight: bold; }
         .exp-danger { background: var(--d); animation: blink 1s infinite; }
-        .exp-normal { background: var(--s); }
         @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
         input { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
         .btn { padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; color: white; width: 100%; }
@@ -77,7 +76,8 @@
 
         <div id="reports" class="section">
             <div class="card">
-                <h3>📊 ڕاپۆرت و سڕینەوەی فرۆشتن</h3>
+                <h3>📊 ڕاپۆرت و گەڕان</h3>
+                <input type="text" id="rep-search" placeholder="🔍 گەڕان لە ناو ڕاپۆرتەکان (ناوی کاڵا)..." onkeyup="renderReports()">
                 <div class="stats-grid">
                     <div class="stat-item"><h4>ئەمڕۆ</h4><p id="p-day">0</p></div>
                     <div class="stat-item"><h4>ئەم مانگە</h4><p id="p-month">0</p></div>
@@ -168,7 +168,7 @@
         document.getElementById('pos-items').innerHTML = inventory.filter(i => i.name.toLowerCase().includes(q) && i.qty > 0).map(i => {
             const exp = checkExpiry(i.exp);
             return `<div class="item-card" onclick="addToCart(${i.id})">
-                ${exp.text ? `<span class="exp-badge exp-${exp.status}">${exp.text}</span>` : ''}
+                ${exp.text ? `<span class="exp-badge exp-danger">${exp.text}</span>` : ''}
                 <img src="${i.img}"><div>${i.name}</div>
                 <div style="color:var(--a); font-weight:bold;">${i.sale.toLocaleString()}</div>
             </div>`;
@@ -228,9 +228,14 @@
     }
 
     function renderReports() {
+        const q = document.getElementById('rep-search').value.toLowerCase();
         let d=0, m=0, y=0;
         const now = new Date();
-        document.getElementById('sales-history-table').innerHTML = sales.sort((a,b)=>b.date-a.date).map(s => {
+        
+        // فلتەرکردنی فرۆشتنەکان بەپێی گەڕان
+        const filteredSales = sales.filter(s => s.name.toLowerCase().includes(q));
+
+        document.getElementById('sales-history-table').innerHTML = filteredSales.sort((a,b)=>b.date-a.date).map(s => {
             const sd = new Date(s.date);
             if(sd.toDateString() === now.toDateString()) d += s.profit;
             if(sd.getMonth() === now.getMonth()) m += s.profit;
@@ -243,6 +248,7 @@
                 <td><button onclick="deleteSale(${s.id})" style="background:none; border:none; color:red; cursor:pointer;">❌</button></td>
             </tr>`;
         }).join('');
+        
         document.getElementById('p-day').innerText = d.toLocaleString();
         document.getElementById('p-month').innerText = m.toLocaleString();
         document.getElementById('p-year').innerText = y.toLocaleString();
