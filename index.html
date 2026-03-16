@@ -2,7 +2,7 @@
 <html lang="ku" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>Azhy Cosmetic v7.5 - Final Stable</title>
+    <title>Azhy Cosmetic - Optimized POS</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;700&display=swap');
         :root { --p: #0f172a; --a: #3b82f6; --s: #10b981; --bg: #f1f5f9; --d: #ef4444; }
@@ -21,16 +21,14 @@
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
         .stat-item { background: white; padding: 20px; border-radius: 12px; border-right: 5px solid var(--a); text-align: center; }
         .pos-layout { display: grid; grid-template-columns: 1fr 380px; gap: 20px; }
-        .items-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
-        .item-card { background: white; padding: 8px; border-radius: 12px; text-align: center; cursor: pointer; border: 2px solid transparent; transition: 0.2s; position: relative; font-size: 0.9rem; }
+        .items-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+        .item-card { background: white; padding: 8px; border-radius: 12px; text-align: center; cursor: pointer; border: 2px solid transparent; transition: 0.2s; position: relative; }
         .item-card:hover { border-color: var(--a); transform: translateY(-3px); }
-        .item-card img { width: 100%; height: 90px; object-fit: cover; border-radius: 8px; background: #eee; }
-        .exp-tag { position: absolute; top: 5px; right: 5px; background: var(--d); color: white; font-size: 9px; padding: 2px 5px; border-radius: 4px; }
+        .item-card img { width: 100%; height: 100px; object-fit: cover; border-radius: 8px; background: #eee; }
+        .item-name { font-weight: bold; font-size: 0.9rem; margin-top: 5px; word-wrap: break-word; white-space: normal; }
+        .exp-badge { position: absolute; top: 5px; right: 5px; background: var(--d); color: white; font-size: 10px; padding: 2px 6px; border-radius: 5px; }
         input { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
         .btn { padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; color: white; width: 100%; }
-        .pagination { display: flex; justify-content: center; gap: 10px; margin-top: 15px; }
-        .page-btn { padding: 5px 12px; background: white; border: 1px solid #ddd; border-radius: 5px; cursor: pointer; }
-        .page-btn.active { background: var(--a); color: white; border-color: var(--a); }
     </style>
 </head>
 <body>
@@ -52,7 +50,7 @@
                 </div>
                 <div class="card">
                     <h3>وەسڵی کڕین</h3>
-                    <div id="cart-list" style="min-height: 200px; max-height: 400px; overflow-y: auto;"></div>
+                    <div id="cart-list" style="min-height: 300px; max-height: 600px; overflow-y: auto;"></div>
                     <div style="border-top: 2px dashed #eee; padding-top: 15px; margin-top: 10px;">
                         <h2 style="display:flex; justify-content:space-between;"><span>کۆی گشتی:</span> <span id="total">0</span></h2>
                         <button class="btn" style="background:var(--s);" onclick="completeSale()">تەواوکردنی فرۆشتن</button>
@@ -65,9 +63,9 @@
             <div class="card">
                 <input type="text" id="inv-search" placeholder="🔍 گەڕان لە کۆگا..." onkeyup="renderInventory()">
                 <div class="stats-grid">
-                    <div class="stat-item"><h4>مایای گشتی</h4><p id="stk-cost">0</p></div>
-                    <div class="stat-item"><h4>فرۆشتنی گشتی</h4><p id="stk-sale">0</p></div>
-                    <div class="stat-item"><h4>قازانج</h4><p id="stk-profit">0</p></div>
+                    <div class="stat-item"><h4>مایای گشتی</h4><p id="stk-cost" style="font-weight:bold; color:var(--p)">0</p></div>
+                    <div class="stat-item"><h4>فرۆشتنی گشتی</h4><p id="stk-sale" style="font-weight:bold; color:var(--a)">0</p></div>
+                    <div class="stat-item"><h4>قازانج</h4><p id="stk-profit" style="font-weight:bold; color:var(--s)">0</p></div>
                 </div>
                 <table>
                     <thead><tr><th>وێنە</th><th>ناو</th><th>مایا</th><th>فرۆشتن</th><th>بڕ</th><th>بەسەرچوون</th><th>کردار</th></tr></thead>
@@ -86,35 +84,32 @@
                 </div>
             </div>
             <div class="card">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <h3>📜 مێژووی فرۆشتن</h3>
-                    <input type="text" id="report-search" style="width:200px" placeholder="🔍 گەڕان..." onkeyup="currentPage=1; renderReports()">
+                <input type="text" id="report-search" placeholder="🔍 گەڕان..." onkeyup="renderReports()">
+                <div style="max-height: 500px; overflow-y: auto;">
+                    <table>
+                        <thead><tr><th>بەروار</th><th>ناو</th><th>مایا</th><th>فرۆشتن</th><th>قازانج</th><th>کردار</th></tr></thead>
+                        <tbody id="sales-history-table"></tbody>
+                    </table>
                 </div>
-                <table>
-                    <thead><tr><th>بەروار</th><th>ناو</th><th>مایا</th><th>فرۆشتن</th><th>قازانج</th><th>کردار</th></tr></thead>
-                    <tbody id="sales-history-table"></tbody>
-                </table>
-                <div id="pagination" class="pagination"></div>
-                <div style="margin-top:15px; display:flex; gap:10px;">
+                <div style="margin-top:20px; display:flex; gap:10px;">
                     <button class="btn" style="background:var(--p)" onclick="backupData()">📥 باکئەپ</button>
-                    <button class="btn" style="background:#64748b;" onclick="document.getElementById('importFile').click()">📤 گەڕاندنەوەی داتا</button>
+                    <button class="btn" style="background:#64748b;" onclick="document.getElementById('importFile').click()">📤 گەڕاندنەوە</button>
                     <input type="file" id="importFile" style="display:none" onchange="restoreData(event)">
-                    <button class="btn" style="background:var(--d)" onclick="if(confirm('دڵنیای هەموو مێژووی فرۆشتنەکان بسڕێتەوە؟')) {sales=[]; save(); renderReports();}">⚠️ پاککردنەوەی مێژوو</button>
                 </div>
             </div>
         </div>
 
         <div id="add" class="section">
-            <div class="card" style="max-width: 450px; margin: auto;">
-                <h3>➕ زیادکردنی کاڵا</h3>
+            <div class="card" style="max-width: 500px; margin: auto;">
+                <h3>تۆمارکردنی کاڵای نوێ</h3>
                 <input type="text" id="in-name" placeholder="ناوی کاڵا">
-                <input type="number" id="in-cost" placeholder="مایا">
-                <input type="number" id="in-sale" placeholder="فرۆشتن">
+                <input type="number" id="in-cost" placeholder="نرخی مایا">
+                <input type="number" id="in-sale" placeholder="نرخی فرۆشتن">
                 <input type="number" id="in-qty" placeholder="بڕ">
                 <label>بەرواری بەسەرچوون:</label>
                 <input type="date" id="in-expiry">
                 <input type="file" id="in-img" accept="image/*">
-                <button class="btn" style="background:var(--a)" onclick="addInv()">پاشەکەوت</button>
+                <button class="btn" style="background:var(--a); margin-top:10px;" onclick="addInv()">پاشەکەوتکردن</button>
             </div>
         </div>
     </div>
@@ -123,8 +118,6 @@
     let inventory = JSON.parse(localStorage.getItem('shop_v5_inv')) || [];
     let sales = JSON.parse(localStorage.getItem('shop_v5_sales')) || [];
     let cart = [];
-    let currentPage = 1;
-    const rowsPerPage = 20;
 
     window.onload = () => { renderPOS(); };
 
@@ -165,10 +158,10 @@
         const grid = document.getElementById('pos-items');
         grid.innerHTML = inventory.filter(i => i.name.toLowerCase().includes(q) && i.qty > 0).map(i => `
             <div class="item-card" onclick="addToCart(${i.id})">
-                ${i.exp ? `<span class="exp-tag">${i.exp}</span>` : ''}
+                ${i.exp ? `<span class="exp-badge">${i.exp}</span>` : ''}
                 <img src="${i.img}">
-                <div style="font-weight:bold">${i.name}</div>
-                <div>${i.sale.toLocaleString()}</div>
+                <div class="item-name">${i.name}</div>
+                <div style="color:var(--a); font-weight:bold;">${i.sale.toLocaleString()}</div>
             </div>
         `).join('');
     }
@@ -183,10 +176,9 @@
     function renderCart() {
         const list = document.getElementById('cart-list');
         list.innerHTML = cart.map((c, idx) => `
-            <div class="cart-row">
-                <span>${c.name} (x${c.count})</span>
-                <input type="number" value="${c.sale}" oninput="cart[${idx}].sale=parseFloat(this.value); calcTotal()">
-                <span onclick="cart.splice(${idx},1); renderCart()" style="color:red; cursor:pointer;">✕</span>
+            <div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee;">
+                <span style="font-size: 0.9rem;">${c.name} (x${c.count})</span>
+                <span onclick="cart.splice(${idx},1); renderCart()" style="color:red; cursor:pointer; font-weight:bold;">✕</span>
             </div>
         `).join('');
         calcTotal();
@@ -215,13 +207,13 @@
         tb.innerHTML = inventory.filter(i => i.name.toLowerCase().includes(q)).map(i => {
             tc += (i.cost * i.qty); ts += (i.sale * i.qty); tp += ((i.sale - i.cost) * i.qty);
             return `<tr>
-                <td><img src="${i.img}" width="30"></td>
-                <td>${i.name}</td>
+                <td><img src="${i.img}" width="35"></td>
+                <td style="white-space:normal; text-align:right;">${i.name}</td>
                 <td>${i.cost.toLocaleString()}</td>
                 <td>${i.sale.toLocaleString()}</td>
                 <td><b>${i.qty}</b></td>
-                <td style="color:red; font-size:0.8rem">${i.exp || '-'}</td>
-                <td><button onclick="inventory=inventory.filter(x=>x.id!=${i.id});save();renderInventory();">❌</button></td>
+                <td style="color:red">${i.exp || '-'}</td>
+                <td><button onclick="if(confirm('سڕینەوە؟')){inventory=inventory.filter(x=>x.id!=${i.id});save();renderInventory();}">❌</button></td>
             </tr>`;
         }).join('');
         document.getElementById('stk-cost').innerText = tc.toLocaleString();
@@ -234,36 +226,26 @@
         const tb = document.getElementById('sales-history-table');
         const now = new Date();
         let d=0, m=0, y=0;
-
         sales.forEach(s => {
             const sd = new Date(s.date);
             if(sd.toDateString() === now.toDateString()) d += s.profit;
             if(sd.getMonth() === now.getMonth() && sd.getFullYear() === now.getFullYear()) m += s.profit;
             if(sd.getFullYear() === now.getFullYear()) y += s.profit;
         });
-
         const filtered = sales.filter(s => s.name.toLowerCase().includes(q)).sort((a,b) => b.date - a.date);
-        const start = (currentPage - 1) * rowsPerPage;
-        const paginated = filtered.slice(start, start + rowsPerPage);
-
-        tb.innerHTML = paginated.map(s => `
-            <tr><td>${new Date(s.date).toLocaleDateString('ku-IQ')}</td><td>${s.name}</td><td>${s.cost.toLocaleString()}</td><td>${s.sale.toLocaleString()}</td><td style="color:green; font-weight:bold">${s.profit.toLocaleString()}</td><td><button onclick="sales=sales.filter(x=>x.id!=${s.id});save();renderReports();">✕</button></td></tr>
+        tb.innerHTML = filtered.map(s => `
+            <tr>
+                <td style="font-size:0.7rem">${new Date(s.date).toLocaleString('ku-IQ')}</td>
+                <td style="white-space:normal;">${s.name}</td>
+                <td>${s.cost.toLocaleString()}</td>
+                <td>${s.sale.toLocaleString()}</td>
+                <td style="color:green; font-weight:bold">${s.profit.toLocaleString()}</td>
+                <td><button onclick="if(confirm('سڕینەوە؟')){sales=sales.filter(x=>x.id!=${s.id});save();renderReports();}">✕</button></td>
+            </tr>
         `).join('');
-
-        renderPagination(filtered.length);
         document.getElementById('p-day').innerText = d.toLocaleString();
         document.getElementById('p-month').innerText = m.toLocaleString();
         document.getElementById('p-year').innerText = y.toLocaleString();
-    }
-
-    function renderPagination(totalItems) {
-        const totalPages = Math.ceil(totalItems / rowsPerPage);
-        const container = document.getElementById('pagination');
-        container.innerHTML = '';
-        if (totalPages <= 1) return;
-        for (let i = 1; i <= Math.min(totalPages, 10); i++) {
-            container.innerHTML += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="currentPage=${i}; renderReports()">${i}</button>`;
-        }
     }
 
     function save() {
@@ -274,15 +256,14 @@
     function backupData() {
         const blob = new Blob([JSON.stringify({ inventory, sales })], { type: 'application/json' });
         const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-        a.download = `Backup_${new Date().toLocaleDateString()}.json`; a.click();
+        a.download = `Backup.json`; a.click();
     }
 
     function restoreData(e) {
         const reader = new FileReader();
         reader.onload = (ev) => {
             const data = JSON.parse(ev.target.result);
-            inventory = data.inventory || []; 
-            sales = data.sales || [];
+            inventory = data.inventory || []; sales = data.sales || [];
             save(); location.reload();
         };
         reader.readAsText(e.target.files[0]);
