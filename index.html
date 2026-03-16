@@ -2,7 +2,7 @@
 <html lang="ku" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>Azhy Cosmetic - Optimized POS</title>
+    <title>Azhy Cosmetic - Editable POS</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;700&display=swap');
         :root { --p: #0f172a; --a: #3b82f6; --s: #10b981; --bg: #f1f5f9; --d: #ef4444; }
@@ -29,6 +29,9 @@
         .exp-badge { position: absolute; top: 5px; right: 5px; background: var(--d); color: white; font-size: 10px; padding: 2px 6px; border-radius: 5px; }
         input { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
         .btn { padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; color: white; width: 100%; }
+        /* Style for editable price in cart */
+        .cart-row { display: grid; grid-template-columns: 2fr 1fr 0.3fr; gap: 10px; align-items: center; padding: 8px; border-bottom: 1px solid #eee; }
+        .cart-price-input { padding: 5px !important; margin: 0 !important; font-size: 0.85rem; text-align: center; border: 1px solid #cbd5e1 !important; }
     </style>
 </head>
 <body>
@@ -169,23 +172,36 @@
     function addToCart(id) {
         const item = inventory.find(i => i.id === id);
         const exc = cart.find(c => c.id === id);
-        if(exc) exc.count++; else cart.push({...item, count: 1});
+        // ئێستا نرخی فرۆشتن لێرە وەردەگیرێت بۆ ئەوەی بتوانین لە ناو وەسڵ بیگۆڕین
+        if(exc) exc.count++; else cart.push({...item, count: 1, customPrice: item.sale});
         renderCart();
     }
 
     function renderCart() {
         const list = document.getElementById('cart-list');
         list.innerHTML = cart.map((c, idx) => `
-            <div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee;">
-                <span style="font-size: 0.9rem;">${c.name} (x${c.count})</span>
-                <span onclick="cart.splice(${idx},1); renderCart()" style="color:red; cursor:pointer; font-weight:bold;">✕</span>
+            <div class="cart-row">
+                <span style="font-size: 0.85rem; font-weight: bold;">${c.name} (x${c.count})</span>
+                <input type="number" class="cart-price-input" value="${c.customPrice}" 
+                    oninput="updateCartPrice(${idx}, this.value)" placeholder="نرخ">
+                <span onclick="cart.splice(${idx},1); renderCart()" style="color:red; cursor:pointer; font-weight:bold; text-align:center;">✕</span>
             </div>
         `).join('');
         calcTotal();
     }
 
+    // فەنکشن بۆ نوێکردنەوەی نرخی دیاریکراو لە ناو وەسڵ
+    function updateCartPrice(idx, newPrice) {
+        let p = parseFloat(newPrice);
+        if(!isNaN(p)) {
+            cart[idx].customPrice = p;
+            calcTotal();
+        }
+    }
+
     function calcTotal() {
-        document.getElementById('total').innerText = cart.reduce((s, i) => s + (i.sale * i.count), 0).toLocaleString();
+        // حیسابکردنەکە ئێستا بەپێی customPrice دەبێت
+        document.getElementById('total').innerText = cart.reduce((s, i) => s + (i.customPrice * i.count), 0).toLocaleString();
     }
 
     function completeSale() {
@@ -194,7 +210,15 @@
             const inv = inventory.find(i => i.id === c.id);
             if(inv) {
                 inv.qty -= c.count;
-                sales.push({ id: Date.now(), name: c.name, cost: c.cost, sale: c.sale, profit: (c.sale - c.cost) * c.count, date: Date.now() });
+                // قازانج لێرەدا بەپێی ئەو نرخە حیساب دەکرێت کە خۆت لە وەسڵەکە نووسیوتە
+                sales.push({ 
+                    id: Date.now(), 
+                    name: c.name, 
+                    cost: c.cost, 
+                    sale: c.customPrice, 
+                    profit: (c.customPrice - c.cost) * c.count, 
+                    date: Date.now() 
+                });
             }
         });
         save(); cart = []; renderCart(); renderPOS(); alert("تەواو بوو");
