@@ -85,7 +85,7 @@
                 </div>
                 <div style="max-height: 400px; overflow-y: auto;">
                     <table>
-                        <thead><tr><th>بەروار</th><th>ناو</th><th>نرخی فرۆشتن</th><th>قازانج</th><th>کردار</th></tr></thead>
+                        <thead><tr><th>بەروار</th><th>ناو</th><th>مایا</th><th>فرۆشتن</th><th>قازانج</th><th>کردار</th></tr></thead>
                         <tbody id="sales-history-table"></tbody>
                     </table>
                 </div>
@@ -231,8 +231,6 @@
         const q = document.getElementById('rep-search').value.toLowerCase();
         let d=0, m=0, y=0;
         const now = new Date();
-        
-        // فلتەرکردنی فرۆشتنەکان بەپێی گەڕان
         const filteredSales = sales.filter(s => s.name.toLowerCase().includes(q));
 
         document.getElementById('sales-history-table').innerHTML = filteredSales.sort((a,b)=>b.date-a.date).map(s => {
@@ -241,8 +239,9 @@
             if(sd.getMonth() === now.getMonth()) m += s.profit;
             y += s.profit;
             return `<tr>
-                <td>${sd.toLocaleDateString()}</td>
+                <td style="font-size: 0.85rem;">${sd.toLocaleDateString()}</td>
                 <td>${s.name} (x${s.count})</td>
+                <td>${s.cost.toLocaleString()}</td>
                 <td>${s.sale.toLocaleString()}</td>
                 <td style="color:green; font-weight:bold;">${s.profit.toLocaleString()}</td>
                 <td><button onclick="deleteSale(${s.id})" style="background:none; border:none; color:red; cursor:pointer;">❌</button></td>
