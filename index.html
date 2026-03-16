@@ -2,7 +2,7 @@
 <html lang="ku" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>Azhy Cosmetic v6.2 - خێراکراو</title>
+    <title>Azhy Cosmetic v7.5 - Final Stable</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;700&display=swap');
         :root { --p: #0f172a; --a: #3b82f6; --s: #10b981; --bg: #f1f5f9; --d: #ef4444; }
@@ -26,38 +26,14 @@
         .item-card:hover { border-color: var(--a); transform: translateY(-3px); }
         .item-card img { width: 100%; height: 90px; object-fit: cover; border-radius: 8px; background: #eee; }
         .exp-tag { position: absolute; top: 5px; right: 5px; background: var(--d); color: white; font-size: 9px; padding: 2px 5px; border-radius: 4px; }
-        input, select { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        input { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
         .btn { padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; color: white; width: 100%; }
-        .cart-row { display: grid; grid-template-columns: 2fr 1.5fr 0.5fr; gap: 8px; align-items: center; margin-bottom: 8px; padding-bottom: 5px; border-bottom: 1px solid #f1f5f9; }
-        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(2px); }
-        .modal-content { background: white; margin: 5% auto; padding: 20px; border-radius: 15px; width: 400px; }
-        .loading-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.8); z-index:9999; justify-content:center; align-items:center; font-weight:bold; }
+        .pagination { display: flex; justify-content: center; gap: 10px; margin-top: 15px; }
+        .page-btn { padding: 5px 12px; background: white; border: 1px solid #ddd; border-radius: 5px; cursor: pointer; }
+        .page-btn.active { background: var(--a); color: white; border-color: var(--a); }
     </style>
 </head>
 <body>
-
-    <div id="loading" class="loading-overlay">تکایە چاوەڕێ بکە...</div>
-
-    <div id="editModal" class="modal">
-        <div class="modal-content">
-            <h3>📝 دەستکاری کاڵا</h3>
-            <input type="hidden" id="edit-id">
-            <label>ناوی کاڵا:</label> <input type="text" id="edit-name">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                <div><label>مایا:</label><input type="number" id="edit-cost"></div>
-                <div><label>فرۆشتن:</label><input type="number" id="edit-sale"></div>
-            </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                <div><label>بڕ:</label><input type="number" id="edit-qty"></div>
-                <div><label>بەسەرچوون:</label><input type="date" id="edit-expiry"></div>
-            </div>
-            <label>وێنەی نوێ:</label> <input type="file" id="edit-img" accept="image/*">
-            <div style="display: flex; gap: 10px; margin-top: 15px;">
-                <button class="btn" style="background: var(--s); flex: 2;" onclick="saveEdit()">پاشەکەوت</button>
-                <button class="btn" style="background: var(--d); flex: 1;" onclick="closeModal()">لادان</button>
-            </div>
-        </div>
-    </div>
 
     <div class="sidebar">
         <h2>Azhy Cosmetic</h2>
@@ -79,7 +55,7 @@
                     <div id="cart-list" style="min-height: 200px; max-height: 400px; overflow-y: auto;"></div>
                     <div style="border-top: 2px dashed #eee; padding-top: 15px; margin-top: 10px;">
                         <h2 style="display:flex; justify-content:space-between;"><span>کۆی گشتی:</span> <span id="total">0</span></h2>
-                        <button class="btn" style="background:var(--s); font-size:1.1rem;" onclick="completeSale()">تەواوکردنی فرۆشتن</button>
+                        <button class="btn" style="background:var(--s);" onclick="completeSale()">تەواوکردنی فرۆشتن</button>
                     </div>
                 </div>
             </div>
@@ -87,70 +63,58 @@
 
         <div id="inventory" class="section">
             <div class="card">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <h3>جەردی کۆگا</h3>
-                    <div style="width: 300px;">
-                        <input type="text" id="inv-search" placeholder="🔍 گەڕان لە کۆگا..." onkeyup="renderInventory()">
-                    </div>
-                </div>
+                <input type="text" id="inv-search" placeholder="🔍 گەڕان لە کۆگا..." onkeyup="renderInventory()">
                 <div class="stats-grid">
                     <div class="stat-item"><h4>مایای گشتی</h4><p id="stk-cost">0</p></div>
                     <div class="stat-item"><h4>فرۆشتنی گشتی</h4><p id="stk-sale">0</p></div>
-                    <div class="stat-item" style="border-right-color: var(--s);"><h4>قازانجی چاوەڕوانکراو</h4><p id="stk-profit" style="color: var(--s);">0</p></div>
+                    <div class="stat-item"><h4>قازانج</h4><p id="stk-profit">0</p></div>
                 </div>
-                <div style="overflow-x:auto">
-                    <table>
-                        <thead>
-                            <tr><th>وێنە</th><th>ناو</th><th>مایا</th><th>فرۆشتن</th><th>بڕ</th><th>بەسەرچوون</th><th>کردار</th></tr>
-                        </thead>
-                        <tbody id="inventory-table"></tbody>
-                    </table>
-                </div>
+                <table>
+                    <thead><tr><th>وێنە</th><th>ناو</th><th>مایا</th><th>فرۆشتن</th><th>بڕ</th><th>بەسەرچوون</th><th>کردار</th></tr></thead>
+                    <tbody id="inventory-table"></tbody>
+                </table>
             </div>
         </div>
 
         <div id="reports" class="section">
             <div class="card">
-                <h3>ڕاپۆرتی قازانج</h3>
+                <h3>📊 ڕاپۆرتی قازانج</h3>
                 <div class="stats-grid">
-                    <div class="stat-item"><h4>ئەمڕۆ</h4><p id="p-day" style="color:var(--s)">0</p></div>
-                    <div class="stat-item"><h4>ئەم مانگە</h4><p id="p-month" style="color:var(--s)">0</p></div>
-                    <div class="stat-item"><h4>ئەمساڵ</h4><p id="p-year" style="color:var(--s)">0</p></div>
-                </div>
-                <div style="display: flex; gap: 10px;">
-                    <button class="btn" style="background: var(--p);" onclick="backupData()">📥 دابەزاندنی باکئەپ</button>
-                    <button class="btn" style="background: #64748b;" onclick="document.getElementById('importFile').click()">📤 گەڕاندنەوەی داتا</button>
-                    <input type="file" id="importFile" style="display:none" onchange="restoreData(event)">
+                    <div class="stat-item"><h4>ئەمڕۆ</h4><p id="p-day">0</p></div>
+                    <div class="stat-item"><h4>ئەم مانگە</h4><p id="p-month">0</p></div>
+                    <div class="stat-item"><h4>ئەمساڵ</h4><p id="p-year">0</p></div>
                 </div>
             </div>
             <div class="card">
-                <h3>📜 لیستی فرۆشتنەکان</h3>
-                <div style="margin-bottom: 15px;">
-                    <input type="text" id="report-search" placeholder="🔍 گەڕان لە ناو یان بەروار..." onkeyup="renderReports()">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h3>📜 مێژووی فرۆشتن</h3>
+                    <input type="text" id="report-search" style="width:200px" placeholder="🔍 گەڕان..." onkeyup="currentPage=1; renderReports()">
                 </div>
-                <div style="overflow-x: auto;">
-                    <table>
-                        <thead>
-                            <tr><th>بەروار</th><th>ناو</th><th>مایا</th><th>فرۆشتن</th><th>قازانج</th><th>کردار</th></tr>
-                        </thead>
-                        <tbody id="sales-history-table"></tbody>
-                    </table>
+                <table>
+                    <thead><tr><th>بەروار</th><th>ناو</th><th>مایا</th><th>فرۆشتن</th><th>قازانج</th><th>کردار</th></tr></thead>
+                    <tbody id="sales-history-table"></tbody>
+                </table>
+                <div id="pagination" class="pagination"></div>
+                <div style="margin-top:15px; display:flex; gap:10px;">
+                    <button class="btn" style="background:var(--p)" onclick="backupData()">📥 باکئەپ</button>
+                    <button class="btn" style="background:#64748b;" onclick="document.getElementById('importFile').click()">📤 گەڕاندنەوەی داتا</button>
+                    <input type="file" id="importFile" style="display:none" onchange="restoreData(event)">
+                    <button class="btn" style="background:var(--d)" onclick="if(confirm('دڵنیای هەموو مێژووی فرۆشتنەکان بسڕێتەوە؟')) {sales=[]; save(); renderReports();}">⚠️ پاککردنەوەی مێژوو</button>
                 </div>
             </div>
         </div>
 
         <div id="add" class="section">
-            <div class="card" style="max-width: 500px; margin: auto;">
-                <h3>تۆمارکردنی کاڵای نوێ</h3>
+            <div class="card" style="max-width: 450px; margin: auto;">
+                <h3>➕ زیادکردنی کاڵا</h3>
                 <input type="text" id="in-name" placeholder="ناوی کاڵا">
-                <input type="number" id="in-cost" placeholder="نرخی مایا">
-                <input type="number" id="in-sale" placeholder="نرخی فرۆشتن">
+                <input type="number" id="in-cost" placeholder="مایا">
+                <input type="number" id="in-sale" placeholder="فرۆشتن">
                 <input type="number" id="in-qty" placeholder="بڕ">
                 <label>بەرواری بەسەرچوون:</label>
                 <input type="date" id="in-expiry">
-                <label>وێنەی کاڵا:</label>
                 <input type="file" id="in-img" accept="image/*">
-                <button class="btn" style="background:var(--a); margin-top:10px;" onclick="addInv()">پاشەکەوتکردن</button>
+                <button class="btn" style="background:var(--a)" onclick="addInv()">پاشەکەوت</button>
             </div>
         </div>
     </div>
@@ -159,36 +123,16 @@
     let inventory = JSON.parse(localStorage.getItem('shop_v5_inv')) || [];
     let sales = JSON.parse(localStorage.getItem('shop_v5_sales')) || [];
     let cart = [];
+    let currentPage = 1;
+    const rowsPerPage = 20;
 
     window.onload = () => { renderPOS(); };
-
-    async function compressImage(file) {
-        return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = (event) => {
-                const img = new Image();
-                img.src = event.target.result;
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    const MAX_WIDTH = 200; 
-                    const scaleSize = MAX_WIDTH / img.width;
-                    canvas.width = MAX_WIDTH;
-                    canvas.height = img.height * scaleSize;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    resolve(canvas.toDataURL('image/jpeg', 0.7)); 
-                };
-            };
-        });
-    }
 
     function showSec(id, btn) {
         document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
         document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
         document.getElementById(id).classList.add('active');
         btn.classList.add('active');
-        if(id === 'pos') renderPOS();
         if(id === 'inventory') renderInventory();
         if(id === 'reports') renderReports();
     }
@@ -200,73 +144,56 @@
         const qty = parseInt(document.getElementById('in-qty').value);
         const exp = document.getElementById('in-expiry').value;
         const file = document.getElementById('in-img').files[0];
-
-        if(!name || isNaN(cost) || isNaN(sale)) return alert("تکایە هەموو خانەکان پڕ بکەرەوە");
+        if(!name || isNaN(cost)) return;
         
-        document.getElementById('loading').style.display = 'flex';
-
-        let imgData = 'https://via.placeholder.com/100';
+        let img = 'https://via.placeholder.com/100';
         if(file) {
-            imgData = await compressImage(file);
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = (e) => {
+                inventory.push({ id: Date.now(), name, cost, sale, qty, exp, img: e.target.result });
+                save(); location.reload();
+            };
+        } else {
+            inventory.push({ id: Date.now(), name, cost, sale, qty, exp, img });
+            save(); location.reload();
         }
-
-        inventory.push({ id: Date.now(), name, cost, sale, qty, exp, img: imgData });
-        save();
-        document.getElementById('loading').style.display = 'none';
-        alert("بە سەرکەوتوویی زیادکرا");
-        location.reload();
     }
 
     function renderPOS() {
-        const query = document.getElementById('pos-search').value.toLowerCase();
+        const q = document.getElementById('pos-search').value.toLowerCase();
         const grid = document.getElementById('pos-items');
-        grid.innerHTML = "";
-        
-        const filtered = inventory.filter(i => i.name.toLowerCase().includes(query) && i.qty > 0);
-        
-        filtered.forEach(item => {
-            const div = document.createElement('div');
-            div.className = 'item-card';
-            div.onclick = () => addToCart(item.id);
-            div.innerHTML = `
-                ${item.exp ? `<span class="exp-tag">${item.exp}</span>` : ''}
-                <img src="${item.img}" loading="lazy">
-                <div style="font-weight:bold; margin-top:5px; height:35px; overflow:hidden;">${item.name}</div>
-                <div style="color:var(--a)">${item.sale.toLocaleString()}</div>
-            `;
-            grid.appendChild(div);
-        });
+        grid.innerHTML = inventory.filter(i => i.name.toLowerCase().includes(q) && i.qty > 0).map(i => `
+            <div class="item-card" onclick="addToCart(${i.id})">
+                ${i.exp ? `<span class="exp-tag">${i.exp}</span>` : ''}
+                <img src="${i.img}">
+                <div style="font-weight:bold">${i.name}</div>
+                <div>${i.sale.toLocaleString()}</div>
+            </div>
+        `).join('');
     }
 
     function addToCart(id) {
         const item = inventory.find(i => i.id === id);
-        const existing = cart.find(c => c.id === id);
-        if(existing) {
-            if(existing.count < item.qty) existing.count++;
-            else alert("بڕی پێویست لە کۆگا نییە");
-        } else {
-            cart.push({ ...item, count: 1, currentSalePrice: item.sale });
-        }
+        const exc = cart.find(c => c.id === id);
+        if(exc) exc.count++; else cart.push({...item, count: 1});
         renderCart();
     }
 
     function renderCart() {
         const list = document.getElementById('cart-list');
-        list.innerHTML = "";
-        cart.forEach((item, i) => {
-            list.innerHTML += `
-                <div class="cart-row">
-                    <span>${item.name} (x${item.count})</span>
-                    <input type="number" style="background:#fffdeb" value="${item.currentSalePrice}" oninput="cart[${i}].currentSalePrice = parseFloat(this.value); calculateTotal()">
-                    <span onclick="cart.splice(${i},1); renderCart()" style="color:red; cursor:pointer; font-weight:bold;">✕</span>
-                </div>`;
-        });
-        calculateTotal();
+        list.innerHTML = cart.map((c, idx) => `
+            <div class="cart-row">
+                <span>${c.name} (x${c.count})</span>
+                <input type="number" value="${c.sale}" oninput="cart[${idx}].sale=parseFloat(this.value); calcTotal()">
+                <span onclick="cart.splice(${idx},1); renderCart()" style="color:red; cursor:pointer;">✕</span>
+            </div>
+        `).join('');
+        calcTotal();
     }
 
-    function calculateTotal() {
-        let t = cart.reduce((sum, item) => sum + ((item.currentSalePrice || 0) * item.count), 0);
-        document.getElementById('total').innerText = t.toLocaleString();
+    function calcTotal() {
+        document.getElementById('total').innerText = cart.reduce((s, i) => s + (i.sale * i.count), 0).toLocaleString();
     }
 
     function completeSale() {
@@ -275,151 +202,79 @@
             const inv = inventory.find(i => i.id === c.id);
             if(inv) {
                 inv.qty -= c.count;
-                sales.push({ 
-                    id: Date.now() + Math.random(),
-                    name: c.name, 
-                    cost: c.cost, 
-                    sale: c.currentSalePrice, 
-                    profit: (c.currentSalePrice - c.cost) * c.count, 
-                    date: Date.now() 
-                });
+                sales.push({ id: Date.now(), name: c.name, cost: c.cost, sale: c.sale, profit: (c.sale - c.cost) * c.count, date: Date.now() });
             }
         });
-        save(); cart = []; renderCart(); renderPOS();
-        alert("فرۆشتن ئەنجامدرا");
+        save(); cart = []; renderCart(); renderPOS(); alert("تەواو بوو");
     }
 
     function renderInventory() {
-        const query = document.getElementById('inv-search') ? document.getElementById('inv-search').value.toLowerCase() : "";
-        const tbody = document.getElementById('inventory-table');
-        tbody.innerHTML = "";
-        let tc = 0, ts = 0, tp = 0;
-        
-        const fragment = document.createDocumentFragment();
-        const filteredInventory = inventory.filter(item => item.name.toLowerCase().includes(query));
-
-        filteredInventory.forEach(item => {
-            tc += (item.cost * item.qty); 
-            ts += (item.sale * item.qty);
-            tp += ((item.sale - item.cost) * item.qty);
-            
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td><img src="${item.img}" width="40" height="40" style="border-radius:5px; object-fit:cover;" loading="lazy"></td>
-                <td style="font-weight:bold">${item.name}</td>
-                <td>${item.cost.toLocaleString()}</td>
-                <td>${item.sale.toLocaleString()}</td>
-                <td style="background:#f0f9ff"><b>${item.qty}</b></td>
-                <td style="color:red; font-size:0.8rem">${item.exp || '-'}</td>
-                <td>
-                    <button onclick="openEdit(${item.id})" style="color:blue; border:none; background:none; cursor:pointer;">Edit</button> |
-                    <button onclick="delItem(${item.id})" style="color:red; border:none; background:none; cursor:pointer;">Del</button>
-                </td>`;
-            fragment.appendChild(tr);
-        });
-        
-        tbody.appendChild(fragment);
+        const q = document.getElementById('inv-search').value.toLowerCase();
+        const tb = document.getElementById('inventory-table');
+        let tc=0, ts=0, tp=0;
+        tb.innerHTML = inventory.filter(i => i.name.toLowerCase().includes(q)).map(i => {
+            tc += (i.cost * i.qty); ts += (i.sale * i.qty); tp += ((i.sale - i.cost) * i.qty);
+            return `<tr>
+                <td><img src="${i.img}" width="30"></td>
+                <td>${i.name}</td>
+                <td>${i.cost.toLocaleString()}</td>
+                <td>${i.sale.toLocaleString()}</td>
+                <td><b>${i.qty}</b></td>
+                <td style="color:red; font-size:0.8rem">${i.exp || '-'}</td>
+                <td><button onclick="inventory=inventory.filter(x=>x.id!=${i.id});save();renderInventory();">❌</button></td>
+            </tr>`;
+        }).join('');
         document.getElementById('stk-cost').innerText = tc.toLocaleString();
         document.getElementById('stk-sale').innerText = ts.toLocaleString();
         document.getElementById('stk-profit').innerText = tp.toLocaleString();
     }
 
-    function openEdit(id) {
-        const item = inventory.find(i => i.id === id);
-        document.getElementById('edit-id').value = item.id;
-        document.getElementById('edit-name').value = item.name;
-        document.getElementById('edit-cost').value = item.cost;
-        document.getElementById('edit-sale').value = item.sale;
-        document.getElementById('edit-qty').value = item.qty;
-        document.getElementById('edit-expiry').value = item.exp || '';
-        document.getElementById('editModal').style.display = 'block';
-    }
-
-    async function saveEdit() {
-        const id = parseInt(document.getElementById('edit-id').value);
-        const item = inventory.find(i => i.id === id);
-        if(item) {
-            item.name = document.getElementById('edit-name').value;
-            item.cost = parseFloat(document.getElementById('edit-cost').value);
-            item.sale = parseFloat(document.getElementById('edit-sale').value);
-            item.qty = parseInt(document.getElementById('edit-qty').value);
-            item.exp = document.getElementById('edit-expiry').value;
-            
-            const file = document.getElementById('edit-img').files[0];
-            if(file) {
-                document.getElementById('loading').style.display = 'flex';
-                item.img = await compressImage(file);
-                document.getElementById('loading').style.display = 'none';
-            }
-            save(); renderInventory(); closeModal();
-        }
-    }
-
-    function closeModal() { document.getElementById('editModal').style.display = 'none'; }
-
-    // لێرەدا فەنکشنی ڕاپۆرت نوێکراوەتەوە بۆ گەڕان
     function renderReports() {
+        const q = document.getElementById('report-search').value.toLowerCase();
+        const tb = document.getElementById('sales-history-table');
         const now = new Date();
-        let d = 0, m = 0, y = 0;
-        const tbody = document.getElementById('sales-history-table');
-        const query = document.getElementById('report-search') ? document.getElementById('report-search').value.toLowerCase() : "";
-        tbody.innerHTML = "";
-
-        const filteredSales = sales.filter(s => {
-            const sDateStr = new Date(s.date).toLocaleString('ku-IQ');
-            return s.name.toLowerCase().includes(query) || sDateStr.includes(query);
-        });
-
-        filteredSales.sort((a,b) => b.date - a.date).forEach(s => {
-            const sDate = new Date(s.date);
-            const dt = sDate.toLocaleString('ku-IQ');
-            tbody.innerHTML += `<tr>
-                <td>${dt}</td>
-                <td>${s.name}</td>
-                <td>${s.cost.toLocaleString()}</td>
-                <td>${s.sale.toLocaleString()}</td>
-                <td style="color:green; font-weight:bold">${s.profit.toLocaleString()}</td>
-                <td><button onclick="deleteSale(${s.id})" style="color:red; border:none; background:none; cursor:pointer;">سڕینەوە</button></td>
-            </tr>`;
-        });
+        let d=0, m=0, y=0;
 
         sales.forEach(s => {
-            const sDate = new Date(s.date);
-            if(sDate.toDateString() === now.toDateString()) d += s.profit;
-            if(sDate.getMonth() === now.getMonth() && sDate.getFullYear() === now.getFullYear()) m += s.profit;
-            if(sDate.getFullYear() === now.getFullYear()) y += s.profit;
+            const sd = new Date(s.date);
+            if(sd.toDateString() === now.toDateString()) d += s.profit;
+            if(sd.getMonth() === now.getMonth() && sd.getFullYear() === now.getFullYear()) m += s.profit;
+            if(sd.getFullYear() === now.getFullYear()) y += s.profit;
         });
 
+        const filtered = sales.filter(s => s.name.toLowerCase().includes(q)).sort((a,b) => b.date - a.date);
+        const start = (currentPage - 1) * rowsPerPage;
+        const paginated = filtered.slice(start, start + rowsPerPage);
+
+        tb.innerHTML = paginated.map(s => `
+            <tr><td>${new Date(s.date).toLocaleDateString('ku-IQ')}</td><td>${s.name}</td><td>${s.cost.toLocaleString()}</td><td>${s.sale.toLocaleString()}</td><td style="color:green; font-weight:bold">${s.profit.toLocaleString()}</td><td><button onclick="sales=sales.filter(x=>x.id!=${s.id});save();renderReports();">✕</button></td></tr>
+        `).join('');
+
+        renderPagination(filtered.length);
         document.getElementById('p-day').innerText = d.toLocaleString();
         document.getElementById('p-month').innerText = m.toLocaleString();
         document.getElementById('p-year').innerText = y.toLocaleString();
     }
 
-    function deleteSale(id) {
-        if(confirm("ئایا دڵنیای لە سڕینەوە؟")) {
-            sales = sales.filter(s => s.id !== id);
-            save(); renderReports();
+    function renderPagination(totalItems) {
+        const totalPages = Math.ceil(totalItems / rowsPerPage);
+        const container = document.getElementById('pagination');
+        container.innerHTML = '';
+        if (totalPages <= 1) return;
+        for (let i = 1; i <= Math.min(totalPages, 10); i++) {
+            container.innerHTML += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="currentPage=${i}; renderReports()">${i}</button>`;
         }
     }
 
     function save() {
-        try {
-            localStorage.setItem('shop_v5_inv', JSON.stringify(inventory));
-            localStorage.setItem('shop_v5_sales', JSON.stringify(sales));
-        } catch(e) {
-            alert("کێشەیەک لە پاشەکەوتکردن هەیە (پێدەچێت قەبارەی وێنەکان زۆر گەورە بن). تکایە باکئەپ بگرە و وێنەکان نوێ بکەرەوە.");
-        }
-    }
-
-    function delItem(id) {
-        if(confirm("دڵنیای لە سڕینەوە؟")) { inventory = inventory.filter(i => i.id !== id); save(); renderInventory(); }
+        localStorage.setItem('shop_v5_inv', JSON.stringify(inventory));
+        localStorage.setItem('shop_v5_sales', JSON.stringify(sales));
     }
 
     function backupData() {
         const blob = new Blob([JSON.stringify({ inventory, sales })], { type: 'application/json' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `Azhy_Cosmetic_Backup.json`; a.click();
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+        a.download = `Backup_${new Date().toLocaleDateString()}.json`; a.click();
     }
 
     function restoreData(e) {
