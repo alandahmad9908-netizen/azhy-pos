@@ -2,7 +2,7 @@
 <html lang="ku" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>Azhy Cosmetic - Full Inventory System</title>
+    <title>Azhy Cosmetic - Ultra Fast System</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;700&display=swap');
@@ -32,16 +32,18 @@
         .btn { padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; color: white; width: 100%; }
         .del-btn { background: none; border: none; color: var(--d); cursor: pointer; font-size: 1.2rem; }
         
-        /* باشترکردنی شاشەی سکانەر */
-        #reader { width: 100%; border-radius: 12px; overflow: hidden; margin-bottom: 10px; display: none; background: #000; border: 4px solid transparent; }
-        #reader video { object-fit: cover !important; } /* بۆ ئەوەی وێنەکە تێک نەچێت */
-        .scan-wait { border-color: var(--w) !important; opacity: 0.6; }
+        /* سکانەری نوێکراوە بۆ فۆکسی باشتر */
+        #reader { width: 100%; border-radius: 15px; overflow: hidden; margin-bottom: 10px; display: none; background: #000; border: 3px solid var(--a); position: relative; }
+        #reader video { width: 100% !important; height: 300px !important; object-fit: cover !important; }
+        /* هێڵی فۆکس لە ناوەڕاست */
+        #reader::after { content: ""; position: absolute; top: 50%; left: 10%; width: 80%; height: 2px; background: rgba(239, 68, 68, 0.7); box-shadow: 0 0 10px red; z-index: 5; }
+        .scan-success { border-color: var(--s) !important; box-shadow: 0 0 20px var(--s); }
     </style>
 </head>
 <body>
 
     <div class="sidebar">
-        <h2>Azhy Cosmetic <span onclick="initAudio()" style="cursor:pointer; font-size: 12px; display: block; color: var(--s);">🔊 چالاککردنی دەنگ</span></h2>
+        <h2>Azhy Cosmetic <span id="audio-status" onclick="initAudio()" style="cursor:pointer; font-size: 12px; display: block; color: var(--s);">🔊 چالاککردنی دەنگ</span></h2>
         <div class="nav-btn active" onclick="showSec('pos', this)">🛒 فرۆشتن</div>
         <div class="nav-btn" onclick="showSec('inventory', this)">📦 کۆگا</div>
         <div class="nav-btn" onclick="showSec('reports', this)">📊 ڕاپۆرت</div>
@@ -53,7 +55,7 @@
             <div class="pos-layout">
                 <div>
                     <div style="display: flex; gap: 10px; margin-bottom:10px;">
-                        <input type="text" id="pos-search" placeholder="🔍 گەڕان بەپێی ناو یان بارکۆد..." onkeyup="renderPOS()">
+                        <input type="text" id="pos-search" placeholder="🔍 گەڕان یان بارکۆدی مۆبایل..." onkeyup="renderPOS()">
                         <button class="btn" style="background:var(--p); width: 150px;" onclick="toggleScanner()">📷 کامێرا</button>
                     </div>
                     <div id="reader"></div>
@@ -88,7 +90,7 @@
         <div id="reports" class="section">
             <div class="card">
                 <h3>📊 ڕاپۆرت و گەڕان</h3>
-                <input type="text" id="rep-search" placeholder="🔍 گەڕان لە ناو ڕاپۆرتەکان (ناوی کاڵا)..." onkeyup="renderReports()">
+                <input type="text" id="rep-search" placeholder="🔍 گەڕان لە ڕاپۆرتەکان..." onkeyup="renderReports()">
                 <div class="stats-grid">
                     <div class="stat-item"><h4>ئەمڕۆ</h4><p id="p-day">0</p></div>
                     <div class="stat-item"><h4>ئەم مانگە</h4><p id="p-month">0</p></div>
@@ -137,7 +139,8 @@
 
     function initAudio() {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        alert("دەنگ چالاک کرا");
+        document.getElementById('audio-status').innerText = "✅ دەنگ چالاکە";
+        document.getElementById('audio-status').style.color = "#10b981";
     }
 
     function playBeep() {
@@ -147,13 +150,11 @@
         osc.type = "sine";
         osc.frequency.setValueAtTime(880, audioCtx.currentTime);
         gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.1);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.1);
     }
 
-    // سکانەری خێرا و ورد بۆ بارکۆدی بچووک
+    // سکانەری نوێکراوە بۆ چارەسەری فۆکس و تەڵخی
     function toggleScanner() {
         const readerDiv = document.getElementById('reader');
         if (html5QrCode) {
@@ -162,47 +163,41 @@
             readerDiv.style.display = 'block';
             html5QrCode = new Html5Qrcode("reader");
             
-            // ڕێکخستنی زۆر خێرا (Ultra High Speed)
             const config = { 
-                fps: 60, // خێرایی سکانکردنی فەریمەکان
-                qrbox: { width: 250, height: 180 }, // قەبارەی سکان
+                fps: 30, // کەمکردنەوەی FPS یارمەتی مۆبایل دەدات باشتر فۆکس بکات
+                qrbox: (viewfinderWidth, viewfinderHeight) => {
+                    return { width: viewfinderWidth * 0.8, height: 160 }; // چوارچێوەی فۆکس لە ناوەڕاست
+                },
                 aspectRatio: 1.0,
-                experimentalFeatures: { useBarCodeDetectorIfSupported: true } // خێراکردنی سکان لە مۆبایل و لاپتۆپ
+                experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+                videoConstraints: {
+                    facingMode: "environment",
+                    focusMode: "continuous",
+                    advanced: [{ focusMode: "continuous" }]
+                }
+            };
+
+            const onScanSuccess = (text) => {
+                if (scanLocked) return;
+                const item = inventory.find(i => i.barcode === text);
+                if(item) {
+                    scanLocked = true;
+                    addToCart(item.id);
+                    playBeep();
+                    readerDiv.classList.add('scan-success');
+                    setTimeout(() => {
+                        scanLocked = false;
+                        readerDiv.classList.remove('scan-success');
+                    }, 1200); 
+                }
             };
 
             html5QrCode.start(
                 { facingMode: "environment" }, 
-                config,
-                (text) => {
-                    if (scanLocked) return;
-                    const item = inventory.find(i => i.barcode === text);
-                    if(item) {
-                        scanLocked = true;
-                        addToCart(item.id);
-                        playBeep();
-                        readerDiv.classList.add('scan-wait');
-                        setTimeout(() => {
-                            scanLocked = false;
-                            readerDiv.classList.remove('scan-wait');
-                        }, 2000); // ٢ چرکە مەجال بۆ ئەوەی دووبارە نەبێتەوە
-                    }
-                }
+                config, 
+                onScanSuccess
             ).catch(err => {
-                // ئەگەر کامێرای پشتەوە نەبوو، کامێرای پێشەوە بەکاربهێنە
-                html5QrCode.start({ facingMode: "user" }, config, (text) => {
-                    if (scanLocked) return;
-                    const item = inventory.find(i => i.barcode === text);
-                    if(item) {
-                        scanLocked = true;
-                        addToCart(item.id);
-                        playBeep();
-                        readerDiv.classList.add('scan-wait');
-                        setTimeout(() => {
-                            scanLocked = false;
-                            readerDiv.classList.remove('scan-wait');
-                        }, 2000);
-                    }
-                });
+                html5QrCode.start({ facingMode: "user" }, config, onScanSuccess);
             });
         }
     }
@@ -217,7 +212,6 @@
         }
     }
 
-    // هەموو فەنکشنەکانی تر وەک خۆیانن بۆ ئەوەی هیچ شتێک تێک نەچێت
     function showSec(id, btn) {
         document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
         document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
@@ -254,7 +248,6 @@
             }
             save(); location.reload();
         };
-
         if(file) {
             const reader = new FileReader();
             reader.onload = (e) => saveProcess(e.target.result);
@@ -276,6 +269,7 @@
 
     function addToCart(id) {
         const item = inventory.find(i => i.id === id);
+        if(!item) return;
         const exc = cart.find(c => c.id === id);
         if(exc) exc.count++; else cart.push({...item, count: 1, customPrice: item.sale});
         renderCart();
@@ -305,7 +299,7 @@
                 sales.push({ id: Date.now() + Math.random(), originalId: inv.id, name: c.name, cost: c.cost, sale: c.customPrice, profit: (c.customPrice - c.cost) * c.count, count: c.count, date: Date.now() });
             }
         });
-        save(); cart = []; renderCart(); renderPOS(); alert("تەواو بوو");
+        save(); cart = []; renderCart(); renderPOS(); alert("فرۆشتن ئەنجام درا");
     }
 
     function renderInventory() {
@@ -330,7 +324,7 @@
     }
 
     function deleteFromInventory(id) {
-        if(confirm("ئایا دڵنیایت لە سڕینەوەی ئەم کاڵایە لە کۆگا؟")) {
+        if(confirm("ئایا دڵنیایت لە سڕینەوەی ئەم کاڵایە؟")) {
             inventory = inventory.filter(i => i.id !== id);
             save(); renderInventory();
         }
@@ -361,7 +355,7 @@
     }
 
     function deleteSale(saleId) {
-        if(confirm("ئەم فرۆشتنە بسڕێتەوە و کاڵاکە بگەڕێتەوە بۆ کۆگا؟")) {
+        if(confirm("ئەم فرۆشتنە بسڕێتەوە؟")) {
             const idx = sales.findIndex(s => s.id == saleId);
             const s = sales[idx];
             const inv = inventory.find(i => i.id == s.originalId);
