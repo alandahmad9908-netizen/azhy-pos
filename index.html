@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Azhy Cosmetic - Full Inventory System</title>
+    <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;700&display=swap');
         :root { --p: #0f172a; --a: #3b82f6; --s: #10b981; --bg: #f1f5f9; --d: #ef4444; --w: #f59e0b; }
@@ -30,12 +31,15 @@
         input { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
         .btn { padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; color: white; width: 100%; }
         .del-btn { background: none; border: none; color: var(--d); cursor: pointer; font-size: 1.2rem; }
+        /* ستایلی سکانەر */
+        #reader { width: 100%; border-radius: 12px; overflow: hidden; margin-bottom: 10px; display: none; background: #000; border: 4px solid transparent; }
+        .scan-wait { border-color: var(--w) !important; opacity: 0.7; }
     </style>
 </head>
 <body>
 
     <div class="sidebar">
-        <h2>Azhy Cosmetic</h2>
+        <h2>Azhy Cosmetic <span onclick="initAudio()" style="cursor:pointer; font-size: 12px; display: block; color: var(--s);">🔊 چالاککردنی دەنگ</span></h2>
         <div class="nav-btn active" onclick="showSec('pos', this)">🛒 فرۆشتن</div>
         <div class="nav-btn" onclick="showSec('inventory', this)">📦 کۆگا</div>
         <div class="nav-btn" onclick="showSec('reports', this)">📊 ڕاپۆرت</div>
@@ -46,7 +50,11 @@
         <div id="pos" class="section active">
             <div class="pos-layout">
                 <div>
-                    <input type="text" id="pos-search" placeholder="🔍 گەڕان بەپێی ناو..." onkeyup="renderPOS()">
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="pos-search" placeholder="🔍 گەڕان بەپێی ناو یان بارکۆد..." onkeyup="renderPOS()">
+                        <button class="btn" style="background:var(--p); width: 150px;" onclick="toggleScanner()">📷 کامێرا</button>
+                    </div>
+                    <div id="reader"></div>
                     <div class="items-grid" id="pos-items"></div>
                 </div>
                 <div class="card">
@@ -69,7 +77,7 @@
                     <div class="stat-item"><h4>قازانج</h4><p id="stk-profit">0</p></div>
                 </div>
                 <table>
-                    <thead><tr><th>وێنە</th><th>ناو</th><th>مایا</th><th>فرۆشتن</th><th>بڕ</th><th>بەسەرچوون</th><th>کردار</th></tr></thead>
+                    <thead><tr><th>وێنە</th><th>ناو</th><th>بارکۆد</th><th>مایا</th><th>فرۆشتن</th><th>بڕ</th><th>بەسەرچوون</th><th>کردار</th></tr></thead>
                     <tbody id="inventory-table"></tbody>
                 </table>
             </div>
@@ -103,6 +111,7 @@
                 <h3 id="form-title">تۆمارکردنی کاڵا</h3>
                 <input type="hidden" id="edit-id">
                 <input type="text" id="in-name" placeholder="ناوی کاڵا">
+                <input type="text" id="in-barcode" placeholder="بارکۆد">
                 <input type="number" id="in-cost" placeholder="نرخی مایا">
                 <input type="number" id="in-sale" placeholder="نرخی فرۆشتن">
                 <input type="number" id="in-qty" placeholder="بڕ">
@@ -118,8 +127,65 @@
     let inventory = JSON.parse(localStorage.getItem('shop_v5_inv')) || [];
     let sales = JSON.parse(localStorage.getItem('shop_v5_sales')) || [];
     let cart = [];
+    let html5QrCode = null;
+    let scanLocked = false;
+    let audioCtx = null;
 
     window.onload = () => { renderPOS(); };
+
+    // فەنکشنی دەنگ
+    function initAudio() {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        alert("دەنگ چالاک کرا");
+    }
+
+    function playBeep() {
+        if (!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.1);
+    }
+
+    function toggleScanner() {
+        const readerDiv = document.getElementById('reader');
+        if (html5QrCode) {
+            stopScanner();
+        } else {
+            readerDiv.style.display = 'block';
+            html5QrCode = new Html5Qrcode("reader");
+            html5QrCode.start({ facingMode: "user" }, { fps: 30, qrbox: 250 },
+                (text) => {
+                    if (scanLocked) return;
+                    const item = inventory.find(i => i.barcode === text);
+                    if(item) {
+                        scanLocked = true;
+                        addToCart(item.id);
+                        playBeep();
+                        readerDiv.classList.add('scan-wait');
+                        setTimeout(() => {
+                            scanLocked = false;
+                            readerDiv.classList.remove('scan-wait');
+                        }, 2000); // ٢ چرکە چاوەڕێ دەکات
+                    }
+                }
+            ).catch(err => console.error(err));
+        }
+    }
+
+    function stopScanner() {
+        if(html5QrCode) {
+            html5QrCode.stop().then(() => {
+                document.getElementById('reader').style.display = 'none';
+                html5QrCode = null;
+            });
+        }
+    }
 
     function showSec(id, btn) {
         document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -141,6 +207,7 @@
     function addInv() {
         const id = document.getElementById('edit-id').value;
         const name = document.getElementById('in-name').value;
+        const barcode = document.getElementById('in-barcode').value; // بارکۆد زیاد کرا
         const cost = parseFloat(document.getElementById('in-cost').value) || 0;
         const sale = parseFloat(document.getElementById('in-sale').value) || 0;
         const qty = parseInt(document.getElementById('in-qty').value) || 0;
@@ -150,9 +217,9 @@
         const saveProcess = (imgData) => {
             if(id) {
                 const idx = inventory.findIndex(i => i.id == id);
-                inventory[idx] = { ...inventory[idx], name, cost, sale, qty, exp, img: imgData || inventory[idx].img };
+                inventory[idx] = { ...inventory[idx], name, barcode, cost, sale, qty, exp, img: imgData || inventory[idx].img };
             } else {
-                inventory.push({ id: Date.now(), name, cost, sale, qty, exp, img: imgData || 'https://via.placeholder.com/100', originalId: Date.now() });
+                inventory.push({ id: Date.now(), name, barcode, cost, sale, qty, exp, img: imgData || 'https://via.placeholder.com/100', originalId: Date.now() });
             }
             save(); location.reload();
         };
@@ -166,7 +233,7 @@
 
     function renderPOS() {
         const q = document.getElementById('pos-search').value.toLowerCase();
-        document.getElementById('pos-items').innerHTML = inventory.filter(i => i.name.toLowerCase().includes(q) && i.qty > 0).map(i => {
+        document.getElementById('pos-items').innerHTML = inventory.filter(i => (i.name.toLowerCase().includes(q) || (i.barcode && i.barcode.includes(q))) && i.qty > 0).map(i => {
             const exp = checkExpiry(i.exp);
             return `<div class="item-card" onclick="addToCart(${i.id})">
                 ${exp.text ? `<span class="exp-badge exp-danger">${exp.text}</span>` : ''}
@@ -213,12 +280,12 @@
     function renderInventory() {
         const q = document.getElementById('inv-search').value.toLowerCase();
         let tc=0, ts=0, tp=0;
-        document.getElementById('inventory-table').innerHTML = inventory.filter(i => i.name.toLowerCase().includes(q)).map(i => {
+        document.getElementById('inventory-table').innerHTML = inventory.filter(i => i.name.toLowerCase().includes(q) || (i.barcode && i.barcode.includes(q))).map(i => {
             tc += (i.cost * i.qty); ts += (i.sale * i.qty); tp += ((i.sale - i.cost) * i.qty);
             const exp = checkExpiry(i.exp);
             return `<tr>
                 <td><img src="${i.img}" width="30"></td>
-                <td>${i.name}</td><td>${i.cost.toLocaleString()}</td><td>${i.sale.toLocaleString()}</td><td>${i.qty}</td>
+                <td>${i.name}</td><td>${i.barcode || '-'}</td><td>${i.cost.toLocaleString()}</td><td>${i.sale.toLocaleString()}</td><td>${i.qty}</td>
                 <td style="color:${exp.status==='danger'?'red':'green'}">${exp.text || '-'}</td>
                 <td>
                     <button onclick="editItem(${i.id})" style="margin-left:10px;">🛠️</button>
@@ -234,8 +301,7 @@
     function deleteFromInventory(id) {
         if(confirm("ئایا دڵنیایت لە سڕینەوەی ئەم کاڵایە لە کۆگا؟")) {
             inventory = inventory.filter(i => i.id !== id);
-            save();
-            renderInventory();
+            save(); renderInventory();
         }
     }
 
@@ -244,7 +310,6 @@
         let d=0, m=0, y=0;
         const now = new Date();
         const filteredSales = sales.filter(s => s.name.toLowerCase().includes(q));
-
         document.getElementById('sales-history-table').innerHTML = filteredSales.sort((a,b)=>b.date-a.date).map(s => {
             const sd = new Date(s.date);
             if(sd.toDateString() === now.toDateString()) d += s.profit;
@@ -259,7 +324,6 @@
                 <td><button onclick="deleteSale(${s.id})" style="background:none; border:none; color:red; cursor:pointer;">❌</button></td>
             </tr>`;
         }).join('');
-        
         document.getElementById('p-day').innerText = d.toLocaleString();
         document.getElementById('p-month').innerText = m.toLocaleString();
         document.getElementById('p-year').innerText = y.toLocaleString();
@@ -280,6 +344,7 @@
         const item = inventory.find(i => i.id == id);
         document.getElementById('edit-id').value = item.id;
         document.getElementById('in-name').value = item.name;
+        document.getElementById('in-barcode').value = item.barcode || "";
         document.getElementById('in-cost').value = item.cost;
         document.getElementById('in-sale').value = item.sale;
         document.getElementById('in-qty').value = item.qty;
