@@ -31,9 +31,11 @@
         input { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
         .btn { padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; color: white; width: 100%; }
         .del-btn { background: none; border: none; color: var(--d); cursor: pointer; font-size: 1.2rem; }
-        /* ستایلی سکانەر */
+        
+        /* باشترکردنی شاشەی سکانەر */
         #reader { width: 100%; border-radius: 12px; overflow: hidden; margin-bottom: 10px; display: none; background: #000; border: 4px solid transparent; }
-        .scan-wait { border-color: var(--w) !important; opacity: 0.7; }
+        #reader video { object-fit: cover !important; } /* بۆ ئەوەی وێنەکە تێک نەچێت */
+        .scan-wait { border-color: var(--w) !important; opacity: 0.6; }
     </style>
 </head>
 <body>
@@ -50,7 +52,7 @@
         <div id="pos" class="section active">
             <div class="pos-layout">
                 <div>
-                    <div style="display: flex; gap: 10px;">
+                    <div style="display: flex; gap: 10px; margin-bottom:10px;">
                         <input type="text" id="pos-search" placeholder="🔍 گەڕان بەپێی ناو یان بارکۆد..." onkeyup="renderPOS()">
                         <button class="btn" style="background:var(--p); width: 150px;" onclick="toggleScanner()">📷 کامێرا</button>
                     </div>
@@ -133,7 +135,6 @@
 
     window.onload = () => { renderPOS(); };
 
-    // فەنکشنی دەنگ
     function initAudio() {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         alert("دەنگ چالاک کرا");
@@ -144,7 +145,7 @@
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
         osc.type = "sine";
-        osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime);
         gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
         osc.connect(gain);
         gain.connect(audioCtx.destination);
@@ -152,6 +153,7 @@
         osc.stop(audioCtx.currentTime + 0.1);
     }
 
+    // سکانەری خێرا و ورد بۆ بارکۆدی بچووک
     function toggleScanner() {
         const readerDiv = document.getElementById('reader');
         if (html5QrCode) {
@@ -159,7 +161,18 @@
         } else {
             readerDiv.style.display = 'block';
             html5QrCode = new Html5Qrcode("reader");
-            html5QrCode.start({ facingMode: "user" }, { fps: 30, qrbox: 250 },
+            
+            // ڕێکخستنی زۆر خێرا (Ultra High Speed)
+            const config = { 
+                fps: 60, // خێرایی سکانکردنی فەریمەکان
+                qrbox: { width: 250, height: 180 }, // قەبارەی سکان
+                aspectRatio: 1.0,
+                experimentalFeatures: { useBarCodeDetectorIfSupported: true } // خێراکردنی سکان لە مۆبایل و لاپتۆپ
+            };
+
+            html5QrCode.start(
+                { facingMode: "environment" }, 
+                config,
                 (text) => {
                     if (scanLocked) return;
                     const item = inventory.find(i => i.barcode === text);
@@ -171,10 +184,26 @@
                         setTimeout(() => {
                             scanLocked = false;
                             readerDiv.classList.remove('scan-wait');
-                        }, 2000); // ٢ چرکە چاوەڕێ دەکات
+                        }, 2000); // ٢ چرکە مەجال بۆ ئەوەی دووبارە نەبێتەوە
                     }
                 }
-            ).catch(err => console.error(err));
+            ).catch(err => {
+                // ئەگەر کامێرای پشتەوە نەبوو، کامێرای پێشەوە بەکاربهێنە
+                html5QrCode.start({ facingMode: "user" }, config, (text) => {
+                    if (scanLocked) return;
+                    const item = inventory.find(i => i.barcode === text);
+                    if(item) {
+                        scanLocked = true;
+                        addToCart(item.id);
+                        playBeep();
+                        readerDiv.classList.add('scan-wait');
+                        setTimeout(() => {
+                            scanLocked = false;
+                            readerDiv.classList.remove('scan-wait');
+                        }, 2000);
+                    }
+                });
+            });
         }
     }
 
@@ -183,10 +212,12 @@
             html5QrCode.stop().then(() => {
                 document.getElementById('reader').style.display = 'none';
                 html5QrCode = null;
+                scanLocked = false;
             });
         }
     }
 
+    // هەموو فەنکشنەکانی تر وەک خۆیانن بۆ ئەوەی هیچ شتێک تێک نەچێت
     function showSec(id, btn) {
         document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
         document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
@@ -207,7 +238,7 @@
     function addInv() {
         const id = document.getElementById('edit-id').value;
         const name = document.getElementById('in-name').value;
-        const barcode = document.getElementById('in-barcode').value; // بارکۆد زیاد کرا
+        const barcode = document.getElementById('in-barcode').value;
         const cost = parseFloat(document.getElementById('in-cost').value) || 0;
         const sale = parseFloat(document.getElementById('in-sale').value) || 0;
         const qty = parseInt(document.getElementById('in-qty').value) || 0;
