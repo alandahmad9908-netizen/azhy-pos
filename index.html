@@ -348,27 +348,22 @@
         document.getElementById('p-year').innerText = y.toLocaleString();
     }
 
-    // فانکشنی گەڕاندنەوەی کاڵا
+    // فانکشنی گەڕاندنەوەی کاڵا - لێرەدا تەنها دەچێتە لیستی گەڕاوەکان بەبێ زیادکردنەوەی بڕ لە کۆگا
     function returnSale(saleId) {
-        if(confirm("ئەم کاڵایە دەگەڕێتەوە بۆ کۆگا؟")) {
+        if(confirm("ئەم کاڵایە دەچێتە لیستی گەڕاوەکان؟ (بڕی کۆگا ناگۆڕێت)")) {
             const idx = sales.findIndex(s => s.id == saleId);
-            const s = sales[idx];
-            const inv = inventory.find(i => i.id == s.originalId);
-            
-            if(inv) {
-                inv.qty += s.count; // زیادکردنەوەی بڕ لە کۆگا
+            if(idx !== -1) {
+                const s = sales[idx];
+                returns.push({
+                    ...s,
+                    returnDate: Date.now()
+                });
+                sales.splice(idx, 1);
+                save();
+                renderReports();
+                renderReturns();
+                alert("کاڵاکە گوازرایەوە بۆ لیستی گەڕاوەکان");
             }
-
-            // زیادکردن بۆ لیستی گەڕاوەکان بۆ ئەرشیف
-            returns.push({
-                ...s,
-                returnDate: Date.now()
-            });
-
-            sales.splice(idx, 1); // لادان لە لیستی فرۆشتن
-            save();
-            renderReports();
-            alert("کاڵاکە گەڕایەوە ناو کۆگا");
         }
     }
 
@@ -379,16 +374,27 @@
                 <td>${r.name}</td>
                 <td>${r.count}</td>
                 <td>${r.sale.toLocaleString()}</td>
-                <td style="color:var(--w)">گەڕاوەتەوە</td>
+                <td style="color:var(--w)">گەڕاوەتەوە (لە کۆگایە)</td>
             </tr>
         `).join('');
     }
 
+    // فانکشنی سڕینەوە - لێرەدا بڕ دەگەڕێتەوە بۆ ناو کۆگا
     function deleteSale(saleId) {
-        if(confirm("ئەم فرۆشتنە بسڕێتەوە؟ (بڕەکەی ناچێتەوە سەر کۆگا)")) {
+        if(confirm("ئەم فرۆشتنە بسڕێتەوە؟ بڕەکەی دەگەڕێتەوە سەر کۆگا")) {
             const idx = sales.findIndex(s => s.id == saleId);
-            sales.splice(idx, 1);
-            save(); renderReports();
+            if(idx !== -1) {
+                const s = sales[idx];
+                const inv = inventory.find(i => i.id == s.originalId);
+                if(inv) {
+                    inv.qty += s.count; // بڕەکە دەگەڕێتەوە کۆگا
+                }
+                sales.splice(idx, 1);
+                save();
+                renderReports();
+                renderInventory();
+                alert("فرۆشتنەکە سڕایەوە و بڕەکە گەڕایەوە کۆگا");
+            }
         }
     }
 
