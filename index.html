@@ -13,7 +13,6 @@
         .nav-btn { padding: 14px; margin: 10px 0; cursor: pointer; border-radius: 10px; transition: 0.3s; display: flex; align-items: center; gap: 10px; }
         .nav-btn:hover, .nav-btn.active { background: var(--a); }
         
-        /* دەستکاری بۆ Full Screen */
         .main { flex: 1; padding: 25px; overflow-y: auto; height: 100vh; display: flex; flex-direction: column; }
         .section { display: none; width: 100%; }
         .section.active { display: block; width: 100%; }
@@ -34,6 +33,11 @@
         input { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
         .btn { padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; color: white; width: 100%; }
         .del-btn { background: none; border: none; color: var(--d); cursor: pointer; font-size: 1.2rem; }
+        
+        /* ستایل بۆ دوگمەی بارکۆد */
+        .barcode-toggle-btn { background: #e2e8f0; color: #475569; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 11px; display: inline-block; border: 1px solid #cbd5e1; }
+        .barcode-toggle-btn:hover { background: var(--a); color: white; }
+
         #reader { width: 100%; border-radius: 15px; overflow: hidden; margin-bottom: 10px; display: none; background: #000; border: 3px solid var(--a); position: relative; }
         #reader video { width: 100% !important; height: 300px !important; object-fit: cover !important; }
         #reader::after { content: ""; position: absolute; top: 50%; left: 10%; width: 80%; height: 2px; background: rgba(239, 68, 68, 0.7); box-shadow: 0 0 10px red; z-index: 5; }
@@ -154,7 +158,6 @@
 
     window.onload = () => { renderPOS(); };
 
-    // --- خێراکردنی دۆزینەوەی بارکۆد ---
     function findItemByBarcode(inputCode) {
         const cleanCode = inputCode.trim();
         return inventory.find(i => {
@@ -163,23 +166,64 @@
         });
     }
 
-    // --- چاککردنی کیبۆرد بۆ ئەوەی خێرا بێت ---
+    // --- لۆجیکی دوگمەی نیشاندان و شاردنەوەی بارکۆد ---
+    function toggleBarcode(btn, code) {
+        if (btn.innerText === "👁️ نیشاندان") {
+            btn.innerText = code;
+            btn.style.background = "#fff";
+            btn.style.color = "var(--p)";
+            btn.title = "بۆ شاردنەوە کلیک بکە";
+        } else {
+            btn.innerText = "👁️ نیشاندان";
+            btn.style.background = "#e2e8f0";
+            btn.style.color = "#475569";
+            btn.title = "بۆ نیشاندان کلیک بکە";
+        }
+    }
+
+    function renderInventory() {
+        const q = document.getElementById('inv-search').value.toLowerCase();
+        let tc=0, ts=0, tp=0;
+        document.getElementById('inventory-table').innerHTML = inventory.filter(i => {
+            return i.name.toLowerCase().includes(q) || (i.barcode && i.barcode.toLowerCase().includes(q));
+        }).map(i => {
+            tc += (i.cost * i.qty); ts += (i.sale * i.qty); tp += ((i.sale - i.cost) * i.qty);
+            const exp = checkExpiry(i.exp);
+            
+            // دروستکردنی دوگمەی بارکۆد
+            const barcodeContent = i.barcode 
+                ? `<div class="barcode-toggle-btn" onclick="toggleBarcode(this, '${i.barcode}')">👁️ نیشاندان</div>` 
+                : '-';
+
+            return `<tr>
+                <td><img src="${i.img}" width="30"></td>
+                <td>${i.name}</td>
+                <td>${barcodeContent}</td>
+                <td>${i.cost.toLocaleString()}</td>
+                <td>${i.sale.toLocaleString()}</td>
+                <td>${i.qty}</td>
+                <td style="color:${exp.status==='danger'?'red':'green'}">${exp.text || '-'}</td>
+                <td>
+                    <button onclick="editItem(${i.id})" style="margin-left:10px;">🛠️</button>
+                    <button class="del-btn" onclick="deleteFromInventory(${i.id})">❌</button>
+                </td>
+            </tr>`;
+        }).join('');
+        document.getElementById('stk-cost').innerText = tc.toLocaleString();
+        document.getElementById('stk-sale').innerText = ts.toLocaleString();
+        document.getElementById('stk-profit').innerText = tp.toLocaleString();
+    }
+
+    // هەموو فەنکشنەکانی تری کۆدەکەت وەک خۆیان لێرە دادەنرێنەوە بەبێ گۆڕانکاری
     window.addEventListener('keydown', (e) => {
         if (!document.getElementById('pos').classList.contains('active')) return;
-
         if (e.key === "Enter") {
             const finalCode = barcodeBuffer.trim();
             if (finalCode.length >= 2) {
                 const item = findItemByBarcode(finalCode);
-                if (item) {
-                    addToCart(item.id);
-                    playBeep();
-                }
-                barcodeBuffer = "";
-                e.preventDefault();
-            } else if (cart.length > 0) {
-                completeSale();
-            }
+                if (item) { addToCart(item.id); playBeep(); }
+                barcodeBuffer = ""; e.preventDefault();
+            } else if (cart.length > 0) { completeSale(); }
         } else if (e.key.length === 1) {
             barcodeBuffer += e.key;
             clearTimeout(window.barcodeTimeout);
@@ -197,8 +241,7 @@
         if (!audioCtx) return;
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
-        osc.type = "sine";
-        osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+        osc.type = "sine"; osc.frequency.setValueAtTime(880, audioCtx.currentTime);
         gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
         osc.connect(gain); gain.connect(audioCtx.destination);
         osc.start(); osc.stop(audioCtx.currentTime + 0.1);
@@ -206,24 +249,19 @@
 
     function toggleScanner() {
         const readerDiv = document.getElementById('reader');
-        if (html5QrCode) {
-            stopScanner();
-        } else {
+        if (html5QrCode) { stopScanner(); } else {
             readerDiv.style.display = 'block';
             html5QrCode = new Html5Qrcode("reader");
             const config = { fps: 30, qrbox: { width: 250, height: 160 } };
-            const onScanSuccess = (text) => {
+            html5QrCode.start({ facingMode: "environment" }, config, (text) => {
                 if (scanLocked) return;
                 const item = findItemByBarcode(text);
                 if(item) {
-                    scanLocked = true;
-                    addToCart(item.id);
-                    playBeep();
+                    scanLocked = true; addToCart(item.id); playBeep();
                     readerDiv.classList.add('scan-success');
                     setTimeout(() => { scanLocked = false; readerDiv.classList.remove('scan-success'); }, 1200); 
                 }
-            };
-            html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess).catch(err => console.log(err));
+            }).catch(err => console.log(err));
         }
     }
 
@@ -263,7 +301,6 @@
         const qty = parseInt(document.getElementById('in-qty').value) || 0;
         const exp = document.getElementById('in-exp').value;
         const file = document.getElementById('in-img').files[0];
-
         const saveProcess = (imgData) => {
             if(id) {
                 const idx = inventory.findIndex(i => i.id == id);
@@ -326,54 +363,19 @@
                 sales.push({ id: Date.now() + Math.random(), originalId: inv.id, name: c.name, cost: c.cost, sale: c.customPrice, profit: (c.customPrice - c.cost) * c.count, count: c.count, date: Date.now() });
             }
         });
-        save(); cart = []; renderCart(); renderPOS(); 
-        alert("فرۆشتن بە سەرکەوتوویی ئەنجام درا");
-    }
-
-    function renderInventory() {
-        const q = document.getElementById('inv-search').value.toLowerCase();
-        let tc=0, ts=0, tp=0;
-        document.getElementById('inventory-table').innerHTML = inventory.filter(i => {
-            return i.name.toLowerCase().includes(q) || (i.barcode && i.barcode.toLowerCase().includes(q));
-        }).map(i => {
-            tc += (i.cost * i.qty); ts += (i.sale * i.qty); tp += ((i.sale - i.cost) * i.qty);
-            const exp = checkExpiry(i.exp);
-            return `<tr>
-                <td><img src="${i.img}" width="30"></td>
-                <td>${i.name}</td><td>${i.barcode || '-'}</td><td>${i.cost.toLocaleString()}</td><td>${i.sale.toLocaleString()}</td><td>${i.qty}</td>
-                <td style="color:${exp.status==='danger'?'red':'green'}">${exp.text || '-'}</td>
-                <td>
-                    <button onclick="editItem(${i.id})" style="margin-left:10px;">🛠️</button>
-                    <button class="del-btn" onclick="deleteFromInventory(${i.id})">❌</button>
-                </td>
-            </tr>`;
-        }).join('');
-        document.getElementById('stk-cost').innerText = tc.toLocaleString();
-        document.getElementById('stk-sale').innerText = ts.toLocaleString();
-        document.getElementById('stk-profit').innerText = tp.toLocaleString();
+        save(); cart = []; renderCart(); renderPOS(); alert("فرۆشتن ئەنجام درا");
     }
 
     function renderReports() {
         const q = document.getElementById('rep-search').value.toLowerCase();
         let d=0, m=0, y=0;
         const now = new Date();
-        const filteredSales = sales.filter(s => s.name.toLowerCase().includes(q));
-        document.getElementById('sales-history-table').innerHTML = filteredSales.sort((a,b)=>b.date-a.date).map(s => {
+        document.getElementById('sales-history-table').innerHTML = sales.filter(s => s.name.toLowerCase().includes(q)).sort((a,b)=>b.date-a.date).map(s => {
             const sd = new Date(s.date);
             if(sd.toDateString() === now.toDateString()) d += s.profit;
             if(sd.getMonth() === now.getMonth()) m += s.profit;
             y += s.profit;
-            return `<tr>
-                <td>${sd.toLocaleDateString()}</td>
-                <td>${s.name} (x${s.count})</td>
-                <td>${s.cost.toLocaleString()}</td>
-                <td>${s.sale.toLocaleString()}</td>
-                <td style="color:green; font-weight:bold;">${s.profit.toLocaleString()}</td>
-                <td>
-                    <button class="return-btn" title="گەڕاندنەوە" onclick="returnSale(${s.id})">↩️</button>
-                    <button onclick="deleteSale(${s.id})" style="background:none; border:none; color:red; cursor:pointer;">❌</button>
-                </td>
-            </tr>`;
+            return `<tr><td>${sd.toLocaleDateString()}</td><td>${s.name} (x${s.count})</td><td>${s.cost.toLocaleString()}</td><td>${s.sale.toLocaleString()}</td><td style="color:green; font-weight:bold;">${s.profit.toLocaleString()}</td><td><button class="return-btn" onclick="returnSale(${s.id})">↩️</button><button onclick="deleteSale(${s.id})" style="background:none;border:none;color:red;cursor:pointer;">❌</button></td></tr>`;
         }).join('');
         document.getElementById('p-day').innerText = d.toLocaleString();
         document.getElementById('p-month').innerText = m.toLocaleString();
@@ -381,57 +383,26 @@
     }
 
     function returnSale(saleId) {
-        if(confirm("ئەم کاڵایە دەگەڕێنیتەوە بۆ لیستی گەڕاوەکان و کۆگا؟")) {
+        if(confirm("گەڕاندنەوە؟")) {
             const idx = sales.findIndex(s => s.id == saleId);
             if(idx !== -1) {
                 const s = sales[idx];
                 const invItem = inventory.find(i => i.id == s.originalId);
                 if(invItem) { invItem.qty += s.count; }
                 returns.push({ ...s, returnDate: Date.now(), returnId: Date.now() + Math.random() });
-                sales.splice(idx, 1);
-                save(); renderReports(); renderInventory(); renderReturns();
-                alert("کاڵاکە گەڕایەوە");
+                sales.splice(idx, 1); save(); renderReports(); renderInventory(); renderReturns();
             }
         }
     }
 
     function renderReturns() {
-        document.getElementById('returns-table').innerHTML = returns.sort((a,b)=>b.returnDate-a.returnDate).map(r => `
-            <tr>
-                <td>${new Date(r.returnDate).toLocaleDateString()}</td>
-                <td>${r.name}</td><td>${r.count}</td><td>${r.sale.toLocaleString()}</td>
-                <td style="color:var(--w)">گەڕاوەتەوە</td>
-                <td><button class="del-btn" onclick="deleteReturn(${r.returnId})">❌</button></td>
-            </tr>`).join('');
+        document.getElementById('returns-table').innerHTML = returns.sort((a,b)=>b.returnDate-a.returnDate).map(r => `<tr><td>${new Date(r.returnDate).toLocaleDateString()}</td><td>${r.name}</td><td>${r.count}</td><td>${r.sale.toLocaleString()}</td><td style="color:var(--w)">گەڕاوەتەوە</td><td><button class="del-btn" onclick="deleteReturn(${r.returnId})">❌</button></td></tr>`).join('');
     }
 
-    function deleteReturn(returnId) {
-        if(confirm("بسڕێتەوە؟")) {
-            returns = returns.filter(r => r.returnId !== returnId);
-            save(); renderReturns();
-        }
-    }
-
-    function deleteSale(saleId) {
-        if(confirm("ئەم فرۆشتنە بسڕێتەوە؟ بڕەکەی دەگەڕێتەوە سەر کۆگا")) {
-            const idx = sales.findIndex(s => s.id == saleId);
-            if(idx !== -1) {
-                const s = sales[idx];
-                const inv = inventory.find(i => i.id == s.originalId);
-                if(inv) { inv.qty += s.count; }
-                sales.splice(idx, 1);
-                save(); renderReports(); renderInventory();
-            }
-        }
-    }
-
-    function deleteFromInventory(id) {
-        if(confirm("ئایا دڵنیایت؟")) {
-            inventory = inventory.filter(i => i.id !== id);
-            save(); renderInventory();
-        }
-    }
-
+    function deleteReturn(id) { if(confirm("بسڕێتەوە؟")) { returns = returns.filter(r => r.returnId !== id); save(); renderReturns(); } }
+    function deleteSale(id) { if(confirm("فرۆشتن بسڕێتەوە؟")) { const s = sales.find(x => x.id == id); const inv = inventory.find(i => i.id == s.originalId); if(inv) inv.qty += s.count; sales = sales.filter(x => x.id != id); save(); renderReports(); renderInventory(); } }
+    function deleteFromInventory(id) { if(confirm("بسڕێتەوە؟")) { inventory = inventory.filter(i => i.id !== id); save(); renderInventory(); } }
+    
     function editItem(id) {
         const item = inventory.find(i => i.id == id);
         document.getElementById('edit-id').value = item.id;
@@ -441,8 +412,7 @@
         document.getElementById('in-sale').value = item.sale;
         document.getElementById('in-qty').value = item.qty;
         document.getElementById('in-exp').value = item.exp || "";
-        document.getElementById('cancel-btn').style.display = "block";
-        showSec('add');
+        document.getElementById('cancel-btn').style.display = "block"; showSec('add');
     }
 
     function save() {
