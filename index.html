@@ -65,7 +65,7 @@
                     <div id="cart-list" style="min-height: 300px; max-height: 500px; overflow-y: auto;"></div>
                     <div style="border-top: 2px dashed #eee; padding-top: 15px; margin-top: 10px;">
                         <h2 style="display:flex; justify-content:space-between;"><span>کۆ:</span> <span id="total">0</span></h2>
-                        <button class="btn" style="background:var(--s);" onclick="completeSale()">تەواوکردنی فرۆشتن</button>
+                        <button class="btn" style="background:var(--s);" onclick="completeSale()">تەواوکردنی فرۆشتن (Enter)</button>
                     </div>
                 </div>
             </div>
@@ -144,8 +144,41 @@
     let html5QrCode = null;
     let scanLocked = false;
     let audioCtx = null;
+    let barcodeBuffer = "";
 
     window.onload = () => { renderPOS(); };
+
+    // --- گۆڕانکاری سەرەکی بۆ سکانەری بارکۆد ---
+    window.addEventListener('keydown', (e) => {
+        // ئەگەر لە بەشی فرۆشتن نەبووین، کار نەکات
+        if (!document.getElementById('pos').classList.contains('active')) return;
+
+        // ئەگەر کلیلەکە Enter بوو
+        if (e.key === "Enter") {
+            if (barcodeBuffer.length > 2) {
+                const item = inventory.find(i => i.barcode === barcodeBuffer);
+                if (item) {
+                    addToCart(item.id);
+                    playBeep();
+                }
+                barcodeBuffer = ""; // پاککردنەوەی بافەرەکە دوای سکان
+            } else {
+                // ئەگەر هیچ شتێک لە بافەرەکەدا نەبوو و ئینتەر نرا، وەسڵەکە تەواو بکە
+                if (cart.length > 0) {
+                    completeSale();
+                }
+            }
+            e.preventDefault();
+        } else {
+            // کۆکردنەوەی پیتەکان کە لە سکانەرەوە دێن
+            if (e.key.length === 1) {
+                barcodeBuffer += e.key;
+                // ئەگەر ماوەیەک پیت نەهات، بافەرەکە پاک بکەرەوە (بۆ ئەوەی تێکەڵ نەبێت)
+                clearTimeout(window.barcodeTimeout);
+                window.barcodeTimeout = setTimeout(() => { barcodeBuffer = ""; }, 100);
+            }
+        }
+    });
 
     function initAudio() {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -297,7 +330,8 @@
                 sales.push({ id: Date.now() + Math.random(), originalId: inv.id, name: c.name, cost: c.cost, sale: c.customPrice, profit: (c.customPrice - c.cost) * c.count, count: c.count, date: Date.now() });
             }
         });
-        save(); cart = []; renderCart(); renderPOS(); alert("فرۆشتن ئەنجام درا");
+        save(); cart = []; renderCart(); renderPOS(); 
+        alert("فرۆشتن بە سەرکەوتوویی ئەنجام درا");
     }
 
     function renderInventory() {
