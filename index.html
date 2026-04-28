@@ -122,9 +122,10 @@
         <div id="add" class="section">
             <div class="card" style="max-width: 500px; margin: auto;">
                 <h3 id="form-title">تۆمارکردنی کاڵا</h3>
+                <p style="font-size: 11px; color: var(--a); margin-bottom: 10px;">* بۆ چەند بارکۆدێک، لە نێوانیان کۆما (,) دابنێ</p>
                 <input type="hidden" id="edit-id">
                 <input type="text" id="in-name" placeholder="ناوی کاڵا">
-                <input type="text" id="in-barcode" placeholder="بارکۆد">
+                <input type="text" id="in-barcode" placeholder="بارکۆد (نموونە: 123,456)">
                 <input type="number" id="in-cost" placeholder="نرخی مایا">
                 <input type="number" id="in-sale" placeholder="نرخی فرۆشتن">
                 <input type="number" id="in-qty" placeholder="بڕ">
@@ -148,35 +149,36 @@
 
     window.onload = () => { renderPOS(); };
 
-    // --- گۆڕانکاری سەرەکی بۆ سکانەری بارکۆد ---
+    // --- فاشکشنی دۆزینەوەی کاڵا بە چەند بارکۆدێک ---
+    function findItemByBarcode(inputCode) {
+        return inventory.find(i => {
+            if (!i.barcode) return false;
+            // دابەشکردنی بارکۆدەکان بە کۆما و سڕینەوەی سپەیسی زیادە
+            const codes = i.barcode.split(',').map(c => c.trim());
+            return codes.includes(inputCode);
+        });
+    }
+
+    // --- گۆڕانکاری لە کیبۆرد بۆ سکانەری دەرەکی ---
     window.addEventListener('keydown', (e) => {
-        // ئەگەر لە بەشی فرۆشتن نەبووین، کار نەکات
         if (!document.getElementById('pos').classList.contains('active')) return;
 
-        // ئەگەر کلیلەکە Enter بوو
         if (e.key === "Enter") {
             if (barcodeBuffer.length > 2) {
-                const item = inventory.find(i => i.barcode === barcodeBuffer);
+                const item = findItemByBarcode(barcodeBuffer);
                 if (item) {
                     addToCart(item.id);
                     playBeep();
                 }
-                barcodeBuffer = ""; // پاککردنەوەی بافەرەکە دوای سکان
-            } else {
-                // ئەگەر هیچ شتێک لە بافەرەکەدا نەبوو و ئینتەر نرا، وەسڵەکە تەواو بکە
-                if (cart.length > 0) {
-                    completeSale();
-                }
+                barcodeBuffer = "";
+            } else if (cart.length > 0) {
+                completeSale();
             }
             e.preventDefault();
-        } else {
-            // کۆکردنەوەی پیتەکان کە لە سکانەرەوە دێن
-            if (e.key.length === 1) {
-                barcodeBuffer += e.key;
-                // ئەگەر ماوەیەک پیت نەهات، بافەرەکە پاک بکەرەوە (بۆ ئەوەی تێکەڵ نەبێت)
-                clearTimeout(window.barcodeTimeout);
-                window.barcodeTimeout = setTimeout(() => { barcodeBuffer = ""; }, 100);
-            }
+        } else if (e.key.length === 1) {
+            barcodeBuffer += e.key;
+            clearTimeout(window.barcodeTimeout);
+            window.barcodeTimeout = setTimeout(() => { barcodeBuffer = ""; }, 150);
         }
     });
 
@@ -218,7 +220,7 @@
             };
             const onScanSuccess = (text) => {
                 if (scanLocked) return;
-                const item = inventory.find(i => i.barcode === text);
+                const item = findItemByBarcode(text);
                 if(item) {
                     scanLocked = true;
                     addToCart(item.id);
@@ -288,7 +290,11 @@
 
     function renderPOS() {
         const q = document.getElementById('pos-search').value.toLowerCase();
-        document.getElementById('pos-items').innerHTML = inventory.filter(i => (i.name.toLowerCase().includes(q) || (i.barcode && i.barcode.includes(q))) && i.qty > 0).map(i => {
+        document.getElementById('pos-items').innerHTML = inventory.filter(i => {
+            const matchName = i.name.toLowerCase().includes(q);
+            const matchBarcode = i.barcode && i.barcode.toLowerCase().includes(q);
+            return (matchName || matchBarcode) && i.qty > 0;
+        }).map(i => {
             const exp = checkExpiry(i.exp);
             return `<div class="item-card" onclick="addToCart(${i.id})">
                 ${exp.text ? `<span class="exp-badge exp-danger">${exp.text}</span>` : ''}
@@ -337,7 +343,11 @@
     function renderInventory() {
         const q = document.getElementById('inv-search').value.toLowerCase();
         let tc=0, ts=0, tp=0;
-        document.getElementById('inventory-table').innerHTML = inventory.filter(i => i.name.toLowerCase().includes(q) || (i.barcode && i.barcode.includes(q))).map(i => {
+        document.getElementById('inventory-table').innerHTML = inventory.filter(i => {
+            const matchName = i.name.toLowerCase().includes(q);
+            const matchBarcode = i.barcode && i.barcode.toLowerCase().includes(q);
+            return (matchName || matchBarcode);
+        }).map(i => {
             tc += (i.cost * i.qty); ts += (i.sale * i.qty); tp += ((i.sale - i.cost) * i.qty);
             const exp = checkExpiry(i.exp);
             return `<tr>
@@ -388,20 +398,11 @@
             if(idx !== -1) {
                 const s = sales[idx];
                 const invItem = inventory.find(i => i.id == s.originalId);
-                if(invItem) {
-                    invItem.qty += s.count;
-                }
-                returns.push({
-                    ...s,
-                    returnDate: Date.now(),
-                    returnId: Date.now() + Math.random()
-                });
+                if(invItem) { invItem.qty += s.count; }
+                returns.push({ ...s, returnDate: Date.now(), returnId: Date.now() + Math.random() });
                 sales.splice(idx, 1);
-                save();
-                renderReports();
-                renderInventory();
-                renderReturns();
-                alert("کاڵاکە گەڕایەوە بۆ کۆگا و لیستی گەڕاوەکان");
+                save(); renderReports(); renderInventory(); renderReturns();
+                alert("کاڵاکە گەڕایەوە");
             }
         }
     }
@@ -410,22 +411,16 @@
         document.getElementById('returns-table').innerHTML = returns.sort((a,b)=>b.returnDate-a.returnDate).map(r => `
             <tr>
                 <td>${new Date(r.returnDate).toLocaleDateString()}</td>
-                <td>${r.name}</td>
-                <td>${r.count}</td>
-                <td>${r.sale.toLocaleString()}</td>
+                <td>${r.name}</td><td>${r.count}</td><td>${r.sale.toLocaleString()}</td>
                 <td style="color:var(--w)">گەڕاوەتەوە</td>
-                <td>
-                    <button class="del-btn" onclick="deleteReturn(${r.returnId})">❌</button>
-                </td>
-            </tr>
-        `).join('');
+                <td><button class="del-btn" onclick="deleteReturn(${r.returnId})">❌</button></td>
+            </tr>`).join('');
     }
 
     function deleteReturn(returnId) {
-        if(confirm("ئایا دڵنیایت لە سڕینەوەی ئەم تۆمارە لە لیستی گەڕاوەکان؟")) {
+        if(confirm("بسڕێتەوە؟")) {
             returns = returns.filter(r => r.returnId !== returnId);
-            save();
-            renderReturns();
+            save(); renderReturns();
         }
     }
 
@@ -435,20 +430,15 @@
             if(idx !== -1) {
                 const s = sales[idx];
                 const inv = inventory.find(i => i.id == s.originalId);
-                if(inv) {
-                    inv.qty += s.count;
-                }
+                if(inv) { inv.qty += s.count; }
                 sales.splice(idx, 1);
-                save();
-                renderReports();
-                renderInventory();
-                alert("فرۆشتنەکە سڕایەوە و بڕەکە گەڕایەوە کۆگا");
+                save(); renderReports(); renderInventory();
             }
         }
     }
 
     function deleteFromInventory(id) {
-        if(confirm("ئایا دڵنیایت لە سڕینەوەی ئەم کاڵایە؟")) {
+        if(confirm("ئایا دڵنیایت؟")) {
             inventory = inventory.filter(i => i.id !== id);
             save(); renderInventory();
         }
