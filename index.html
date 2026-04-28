@@ -12,10 +12,13 @@
         .sidebar h2 { text-align: center; color: var(--a); border-bottom: 1px solid #334155; padding-bottom: 15px; }
         .nav-btn { padding: 14px; margin: 10px 0; cursor: pointer; border-radius: 10px; transition: 0.3s; display: flex; align-items: center; gap: 10px; }
         .nav-btn:hover, .nav-btn.active { background: var(--a); }
-        .main { flex: 1; padding: 25px; overflow-y: auto; height: 100vh; }
-        .section { display: none; }
-        .section.active { display: block; }
-        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        
+        /* دەستکاری بۆ Full Screen */
+        .main { flex: 1; padding: 25px; overflow-y: auto; height: 100vh; display: flex; flex-direction: column; }
+        .section { display: none; width: 100%; }
+        .section.active { display: block; width: 100%; }
+        
+        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; width: 100%; box-sizing: border-box; }
         table { width: 100%; border-collapse: collapse; margin-top: 15px; background: white; border-radius: 10px; }
         th, td { padding: 12px; border-bottom: 1px solid #eee; text-align: center; }
         th { background: #f8fafc; color: #64748b; }
@@ -79,10 +82,12 @@
                     <div class="stat-item"><h4>فرۆشتنی گشتی</h4><p id="stk-sale">0</p></div>
                     <div class="stat-item"><h4>قازانج</h4><p id="stk-profit">0</p></div>
                 </div>
-                <table>
-                    <thead><tr><th>وێنە</th><th>ناو</th><th>بارکۆد</th><th>مایا</th><th>فرۆشتن</th><th>بڕ</th><th>بەسەرچوون</th><th>کردار</th></tr></thead>
-                    <tbody id="inventory-table"></tbody>
-                </table>
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead><tr><th>وێنە</th><th>ناو</th><th>بارکۆد</th><th>مایا</th><th>فرۆشتن</th><th>بڕ</th><th>بەسەرچوون</th><th>کردار</th></tr></thead>
+                        <tbody id="inventory-table"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
@@ -149,36 +154,36 @@
 
     window.onload = () => { renderPOS(); };
 
-    // --- فاشکشنی دۆزینەوەی کاڵا بە چەند بارکۆدێک ---
+    // --- خێراکردنی دۆزینەوەی بارکۆد ---
     function findItemByBarcode(inputCode) {
+        const cleanCode = inputCode.trim();
         return inventory.find(i => {
             if (!i.barcode) return false;
-            // دابەشکردنی بارکۆدەکان بە کۆما و سڕینەوەی سپەیسی زیادە
-            const codes = i.barcode.split(',').map(c => c.trim());
-            return codes.includes(inputCode);
+            return i.barcode.split(',').some(c => c.trim() === cleanCode);
         });
     }
 
-    // --- گۆڕانکاری لە کیبۆرد بۆ سکانەری دەرەکی ---
+    // --- چاککردنی کیبۆرد بۆ ئەوەی خێرا بێت ---
     window.addEventListener('keydown', (e) => {
         if (!document.getElementById('pos').classList.contains('active')) return;
 
         if (e.key === "Enter") {
-            if (barcodeBuffer.length > 2) {
-                const item = findItemByBarcode(barcodeBuffer);
+            const finalCode = barcodeBuffer.trim();
+            if (finalCode.length >= 2) {
+                const item = findItemByBarcode(finalCode);
                 if (item) {
                     addToCart(item.id);
                     playBeep();
                 }
                 barcodeBuffer = "";
+                e.preventDefault();
             } else if (cart.length > 0) {
                 completeSale();
             }
-            e.preventDefault();
         } else if (e.key.length === 1) {
             barcodeBuffer += e.key;
             clearTimeout(window.barcodeTimeout);
-            window.barcodeTimeout = setTimeout(() => { barcodeBuffer = ""; }, 150);
+            window.barcodeTimeout = setTimeout(() => { barcodeBuffer = ""; }, 100);
         }
     });
 
@@ -206,18 +211,7 @@
         } else {
             readerDiv.style.display = 'block';
             html5QrCode = new Html5Qrcode("reader");
-            const config = { 
-                fps: 30, 
-                qrbox: (viewfinderWidth, viewfinderHeight) => {
-                    return { width: viewfinderWidth * 0.8, height: 160 }; 
-                },
-                aspectRatio: 1.0,
-                videoConstraints: {
-                    facingMode: "environment",
-                    focusMode: "continuous",
-                    advanced: [{ focusMode: "continuous" }]
-                }
-            };
+            const config = { fps: 30, qrbox: { width: 250, height: 160 } };
             const onScanSuccess = (text) => {
                 if (scanLocked) return;
                 const item = findItemByBarcode(text);
@@ -229,8 +223,7 @@
                     setTimeout(() => { scanLocked = false; readerDiv.classList.remove('scan-success'); }, 1200); 
                 }
             };
-            html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess)
-                .catch(err => html5QrCode.start({ facingMode: "user" }, config, onScanSuccess));
+            html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess).catch(err => console.log(err));
         }
     }
 
@@ -239,7 +232,6 @@
             html5QrCode.stop().then(() => {
                 document.getElementById('reader').style.display = 'none';
                 html5QrCode = null;
-                scanLocked = false;
             });
         }
     }
@@ -291,9 +283,7 @@
     function renderPOS() {
         const q = document.getElementById('pos-search').value.toLowerCase();
         document.getElementById('pos-items').innerHTML = inventory.filter(i => {
-            const matchName = i.name.toLowerCase().includes(q);
-            const matchBarcode = i.barcode && i.barcode.toLowerCase().includes(q);
-            return (matchName || matchBarcode) && i.qty > 0;
+            return (i.name.toLowerCase().includes(q) || (i.barcode && i.barcode.toLowerCase().includes(q))) && i.qty > 0;
         }).map(i => {
             const exp = checkExpiry(i.exp);
             return `<div class="item-card" onclick="addToCart(${i.id})">
@@ -344,9 +334,7 @@
         const q = document.getElementById('inv-search').value.toLowerCase();
         let tc=0, ts=0, tp=0;
         document.getElementById('inventory-table').innerHTML = inventory.filter(i => {
-            const matchName = i.name.toLowerCase().includes(q);
-            const matchBarcode = i.barcode && i.barcode.toLowerCase().includes(q);
-            return (matchName || matchBarcode);
+            return i.name.toLowerCase().includes(q) || (i.barcode && i.barcode.toLowerCase().includes(q));
         }).map(i => {
             tc += (i.cost * i.qty); ts += (i.sale * i.qty); tp += ((i.sale - i.cost) * i.qty);
             const exp = checkExpiry(i.exp);
@@ -478,7 +466,7 @@
         };
         reader.readAsText(e.target.files[0]);
     }
-    
+
     function cancelEdit() {
         document.getElementById('edit-id').value = "";
         document.getElementById('cancel-btn').style.display = "none";
