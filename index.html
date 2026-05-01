@@ -23,10 +23,30 @@
         th { background: #f8fafc; color: #64748b; }
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
         .stat-item { background: white; padding: 20px; border-radius: 12px; border-right: 5px solid var(--a); text-align: center; }
-        .pos-layout { display: grid; grid-template-columns: 1fr 380px; gap: 20px; }
+        .pos-layout { display: grid; grid-template-columns: 1fr 420px; gap: 20px; }
         .items-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
-        .item-card { background: white; padding: 8px; border-radius: 12px; text-align: center; cursor: pointer; border: 2px solid transparent; transition: all 0.2s; position: relative; }
+        
+        /* Hover Effect for Item Cards */
+        .item-card { 
+            background: white; padding: 8px; border-radius: 12px; text-align: center; 
+            cursor: pointer; border: 2px solid transparent; transition: all 0.3s ease; position: relative; 
+        }
+        .item-card:hover { 
+            transform: translateY(-5px); 
+            box-shadow: 0 10px 15px rgba(0,0,0,0.1); 
+            border-color: var(--a);
+        }
         .item-card img { width: 100%; height: 100px; object-fit: cover; border-radius: 8px; background: #eee; }
+        
+        .qty-controls { display: flex; align-items: center; gap: 5px; background: #f8fafc; border-radius: 8px; padding: 2px; }
+        .qty-btn { 
+            width: 30px; height: 30px; border: none; border-radius: 5px; 
+            background: var(--p); color: white; cursor: pointer; font-weight: bold; 
+        }
+        .qty-btn:hover { opacity: 0.8; }
+        
+        .price-text { font-size: 1.2rem; font-weight: 700; color: var(--p); }
+
         .exp-badge { position: absolute; top: 5px; right: 5px; color: white; font-size: 10px; padding: 2px 6px; border-radius: 5px; font-weight: bold; }
         .exp-danger { background: var(--d); animation: blink 1s infinite; }
         @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
@@ -34,7 +54,6 @@
         .btn { padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; color: white; width: 100%; }
         .del-btn { background: none; border: none; color: var(--d); cursor: pointer; font-size: 1.2rem; }
         
-        /* ستایل بۆ دوگمەی بارکۆد */
         .barcode-toggle-btn { background: #e2e8f0; color: #475569; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 11px; display: inline-block; border: 1px solid #cbd5e1; }
         .barcode-toggle-btn:hover { background: var(--a); color: white; }
 
@@ -71,8 +90,8 @@
                     <h3>وەسڵی کڕین</h3>
                     <div id="cart-list" style="min-height: 300px; max-height: 500px; overflow-y: auto;"></div>
                     <div style="border-top: 2px dashed #eee; padding-top: 15px; margin-top: 10px;">
-                        <h2 style="display:flex; justify-content:space-between;"><span>کۆ:</span> <span id="total">0</span></h2>
-                        <button class="btn" style="background:var(--s);" onclick="completeSale()">تەواوکردنی فرۆشتن (Enter)</button>
+                        <h2 style="display:flex; justify-content:space-between; font-size: 2rem;"><span>کۆ:</span> <span id="total">0</span></h2>
+                        <button class="btn" style="background:var(--s); font-size: 1.2rem; padding: 15px;" onclick="completeSale()">تەواوکردنی فرۆشتن (Enter)</button>
                     </div>
                 </div>
             </div>
@@ -131,7 +150,6 @@
         <div id="add" class="section">
             <div class="card" style="max-width: 500px; margin: auto;">
                 <h3 id="form-title">تۆمارکردنی کاڵا</h3>
-                <p style="font-size: 11px; color: var(--a); margin-bottom: 10px;">* بۆ چەند بارکۆدێک، لە نێوانیان کۆما (,) دابنێ</p>
                 <input type="hidden" id="edit-id">
                 <input type="text" id="in-name" placeholder="ناوی کاڵا">
                 <input type="text" id="in-barcode" placeholder="بارکۆد (نموونە: 123,456)">
@@ -166,18 +184,15 @@
         });
     }
 
-    // --- لۆجیکی دوگمەی نیشاندان و شاردنەوەی بارکۆد ---
     function toggleBarcode(btn, code) {
         if (btn.innerText === "👁️ نیشاندان") {
             btn.innerText = code;
             btn.style.background = "#fff";
             btn.style.color = "var(--p)";
-            btn.title = "بۆ شاردنەوە کلیک بکە";
         } else {
             btn.innerText = "👁️ نیشاندان";
             btn.style.background = "#e2e8f0";
             btn.style.color = "#475569";
-            btn.title = "بۆ نیشاندان کلیک بکە";
         }
     }
 
@@ -189,32 +204,79 @@
         }).map(i => {
             tc += (i.cost * i.qty); ts += (i.sale * i.qty); tp += ((i.sale - i.cost) * i.qty);
             const exp = checkExpiry(i.exp);
-            
-            // دروستکردنی دوگمەی بارکۆد
-            const barcodeContent = i.barcode 
-                ? `<div class="barcode-toggle-btn" onclick="toggleBarcode(this, '${i.barcode}')">👁️ نیشاندان</div>` 
-                : '-';
-
-            return `<tr>
-                <td><img src="${i.img}" width="30"></td>
-                <td>${i.name}</td>
-                <td>${barcodeContent}</td>
-                <td>${i.cost.toLocaleString()}</td>
-                <td>${i.sale.toLocaleString()}</td>
-                <td>${i.qty}</td>
-                <td style="color:${exp.status==='danger'?'red':'green'}">${exp.text || '-'}</td>
-                <td>
-                    <button onclick="editItem(${i.id})" style="margin-left:10px;">🛠️</button>
-                    <button class="del-btn" onclick="deleteFromInventory(${i.id})">❌</button>
-                </td>
-            </tr>`;
+            const barcodeContent = i.barcode ? `<div class="barcode-toggle-btn" onclick="toggleBarcode(this, '${i.barcode}')">👁️ نیشاندان</div>` : '-';
+            return `<tr><td><img src="${i.img}" width="30"></td><td>${i.name}</td><td>${barcodeContent}</td><td>${i.cost.toLocaleString()}</td><td>${i.sale.toLocaleString()}</td><td>${i.qty}</td><td style="color:${exp.status==='danger'?'red':'green'}">${exp.text || '-'}</td><td><button onclick="editItem(${i.id})">🛠️</button> <button class="del-btn" onclick="deleteFromInventory(${i.id})">❌</button></td></tr>`;
         }).join('');
         document.getElementById('stk-cost').innerText = tc.toLocaleString();
         document.getElementById('stk-sale').innerText = ts.toLocaleString();
         document.getElementById('stk-profit').innerText = tp.toLocaleString();
     }
 
-    // هەموو فەنکشنەکانی تری کۆدەکەت وەک خۆیان لێرە دادەنرێنەوە بەبێ گۆڕانکاری
+    function renderPOS() {
+        const q = document.getElementById('pos-search').value.toLowerCase();
+        document.getElementById('pos-items').innerHTML = inventory.filter(i => {
+            return (i.name.toLowerCase().includes(q) || (i.barcode && i.barcode.toLowerCase().includes(q))) && i.qty > 0;
+        }).map(i => {
+            const exp = checkExpiry(i.exp);
+            return `<div class="item-card" onclick="addToCart(${i.id})">
+                ${exp.text ? `<span class="exp-badge exp-danger">${exp.text}</span>` : ''}
+                <img src="${i.img}">
+                <div style="font-weight:bold; margin-top:5px;">${i.name}</div>
+                <div class="price-text" style="color:var(--a);">${i.sale.toLocaleString()}</div>
+            </div>`;
+        }).join('');
+    }
+
+    function addToCart(id) {
+        const item = inventory.find(i => i.id === id);
+        if(!item) return;
+        const exc = cart.find(c => c.id === id);
+        if(exc) { if(exc.count < item.qty) exc.count++; } 
+        else { cart.push({...item, count: 1, customPrice: item.sale}); }
+        renderCart();
+    }
+
+    function updateCartQty(idx, delta) {
+        const item = cart[idx];
+        const invItem = inventory.find(i => i.id === item.id);
+        if(delta > 0 && item.count < invItem.qty) { item.count++; }
+        else if(delta < 0 && item.count > 1) { item.count--; }
+        renderCart();
+    }
+
+    function renderCart() {
+        document.getElementById('cart-list').innerHTML = cart.map((c, idx) => `
+            <div style="display:grid; grid-template-columns: 1.5fr 1fr 1fr 0.3fr; gap:10px; padding:10px; border-bottom:1px solid #eee; align-items:center;">
+                <span style="font-weight:bold;">${c.name}</span>
+                <div class="qty-controls">
+                    <button class="qty-btn" onclick="updateCartQty(${idx}, 1)">+</button>
+                    <span style="width:20px; text-align:center; font-weight:bold;">${c.count}</span>
+                    <button class="qty-btn" onclick="updateCartQty(${idx}, -1)">-</button>
+                </div>
+                <input type="number" class="price-text" style="padding:5px; margin:0;" value="${c.customPrice}" oninput="cart[${idx}].customPrice=parseFloat(this.value)||0; calcTotal()">
+                <span onclick="cart.splice(${idx},1); renderCart()" style="color:red; cursor:pointer; font-weight:bold;">✕</span>
+            </div>`).join('');
+        calcTotal();
+    }
+
+    function calcTotal() {
+        const t = cart.reduce((s, i) => s + (i.customPrice * i.count), 0);
+        document.getElementById('total').innerText = t.toLocaleString();
+    }
+
+    function completeSale() {
+        if(!cart.length) return;
+        cart.forEach(c => {
+            const inv = inventory.find(i => i.id === c.id);
+            if(inv) {
+                inv.qty -= c.count;
+                sales.push({ id: Date.now() + Math.random(), originalId: inv.id, name: c.name, cost: c.cost, sale: c.customPrice, profit: (c.customPrice - c.cost) * c.count, count: c.count, date: Date.now() });
+            }
+        });
+        save(); cart = []; renderCart(); renderPOS(); alert("فرۆشتن ئەنجام درا");
+    }
+
+    // --- Core Functions (Unchanged) ---
     window.addEventListener('keydown', (e) => {
         if (!document.getElementById('pos').classList.contains('active')) return;
         if (e.key === "Enter") {
@@ -252,8 +314,7 @@
         if (html5QrCode) { stopScanner(); } else {
             readerDiv.style.display = 'block';
             html5QrCode = new Html5Qrcode("reader");
-            const config = { fps: 30, qrbox: { width: 250, height: 160 } };
-            html5QrCode.start({ facingMode: "environment" }, config, (text) => {
+            html5QrCode.start({ facingMode: "environment" }, { fps: 30, qrbox: 250 }, (text) => {
                 if (scanLocked) return;
                 const item = findItemByBarcode(text);
                 if(item) {
@@ -317,55 +378,6 @@
         } else saveProcess();
     }
 
-    function renderPOS() {
-        const q = document.getElementById('pos-search').value.toLowerCase();
-        document.getElementById('pos-items').innerHTML = inventory.filter(i => {
-            return (i.name.toLowerCase().includes(q) || (i.barcode && i.barcode.toLowerCase().includes(q))) && i.qty > 0;
-        }).map(i => {
-            const exp = checkExpiry(i.exp);
-            return `<div class="item-card" onclick="addToCart(${i.id})">
-                ${exp.text ? `<span class="exp-badge exp-danger">${exp.text}</span>` : ''}
-                <img src="${i.img}"><div>${i.name}</div>
-                <div style="color:var(--a); font-weight:bold;">${i.sale.toLocaleString()}</div>
-            </div>`;
-        }).join('');
-    }
-
-    function addToCart(id) {
-        const item = inventory.find(i => i.id === id);
-        if(!item) return;
-        const exc = cart.find(c => c.id === id);
-        if(exc) exc.count++; else cart.push({...item, count: 1, customPrice: item.sale});
-        renderCart();
-    }
-
-    function renderCart() {
-        document.getElementById('cart-list').innerHTML = cart.map((c, idx) => `
-            <div style="display:grid; grid-template-columns: 2fr 1fr 0.3fr; gap:5px; padding:5px; border-bottom:1px solid #eee;">
-                <span>${c.name} (x${c.count})</span>
-                <input type="number" value="${c.customPrice}" oninput="cart[${idx}].customPrice=parseFloat(this.value)||0; calcTotal()">
-                <span onclick="cart.splice(${idx},1); renderCart()" style="color:red; cursor:pointer;">✕</span>
-            </div>`).join('');
-        calcTotal();
-    }
-
-    function calcTotal() {
-        const t = cart.reduce((s, i) => s + (i.customPrice * i.count), 0);
-        document.getElementById('total').innerText = t.toLocaleString();
-    }
-
-    function completeSale() {
-        if(!cart.length) return;
-        cart.forEach(c => {
-            const inv = inventory.find(i => i.id === c.id);
-            if(inv) {
-                inv.qty -= c.count;
-                sales.push({ id: Date.now() + Math.random(), originalId: inv.id, name: c.name, cost: c.cost, sale: c.customPrice, profit: (c.customPrice - c.cost) * c.count, count: c.count, date: Date.now() });
-            }
-        });
-        save(); cart = []; renderCart(); renderPOS(); alert("فرۆشتن ئەنجام درا");
-    }
-
     function renderReports() {
         const q = document.getElementById('rep-search').value.toLowerCase();
         let d=0, m=0, y=0;
@@ -375,7 +387,7 @@
             if(sd.toDateString() === now.toDateString()) d += s.profit;
             if(sd.getMonth() === now.getMonth()) m += s.profit;
             y += s.profit;
-            return `<tr><td>${sd.toLocaleDateString()}</td><td>${s.name} (x${s.count})</td><td>${s.cost.toLocaleString()}</td><td>${s.sale.toLocaleString()}</td><td style="color:green; font-weight:bold;">${s.profit.toLocaleString()}</td><td><button class="return-btn" onclick="returnSale(${s.id})">↩️</button><button onclick="deleteSale(${s.id})" style="background:none;border:none;color:red;cursor:pointer;">❌</button></td></tr>`;
+            return `<tr><td>${sd.toLocaleDateString()}</td><td>${s.name} (x${s.count})</td><td>${s.cost.toLocaleString()}</td><td>${s.sale.toLocaleString()}</td><td style="color:green; font-weight:bold;">${s.profit.toLocaleString()}</td><td><button class="return-btn" onclick="returnSale(${s.id})">↩️</button> <button onclick="deleteSale(${s.id})" style="color:red; background:none; border:none; cursor:pointer;">❌</button></td></tr>`;
         }).join('');
         document.getElementById('p-day').innerText = d.toLocaleString();
         document.getElementById('p-month').innerText = m.toLocaleString();
