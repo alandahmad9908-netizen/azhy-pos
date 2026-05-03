@@ -26,7 +26,6 @@
         .pos-layout { display: grid; grid-template-columns: 1fr 420px; gap: 20px; }
         .items-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
         
-        /* Hover Effect for Item Cards */
         .item-card { 
             background: white; padding: 8px; border-radius: 12px; text-align: center; 
             cursor: pointer; border: 2px solid transparent; transition: all 0.3s ease; position: relative; 
@@ -276,7 +275,6 @@
         save(); cart = []; renderCart(); renderPOS(); alert("فرۆشتن ئەنجام درا");
     }
 
-    // --- Core Functions (Unchanged) ---
     window.addEventListener('keydown', (e) => {
         if (!document.getElementById('pos').classList.contains('active')) return;
         if (e.key === "Enter") {
@@ -395,15 +393,45 @@
     }
 
     function returnSale(saleId) {
-        if(confirm("گەڕاندنەوە؟")) {
-            const idx = sales.findIndex(s => s.id == saleId);
-            if(idx !== -1) {
-                const s = sales[idx];
-                const invItem = inventory.find(i => i.id == s.originalId);
-                if(invItem) { invItem.qty += s.count; }
-                returns.push({ ...s, returnDate: Date.now(), returnId: Date.now() + Math.random() });
-                sales.splice(idx, 1); save(); renderReports(); renderInventory(); renderReturns();
+        const idx = sales.findIndex(s => s.id == saleId);
+        if(idx !== -1) {
+            const s = sales[idx];
+            let returnCount = prompt(`بڕی گەڕانەوە دیاری بکە (زۆرترین بڕ: ${s.count}):`, s.count);
+            
+            if (returnCount === null) return;
+            returnCount = parseInt(returnCount);
+
+            if (isNaN(returnCount) || returnCount <= 0 || returnCount > s.count) {
+                alert("بڕی دیاریکراو هەڵەیە!");
+                return;
             }
+
+            const invItem = inventory.find(i => i.id == s.originalId);
+            if(invItem) { 
+                invItem.qty += returnCount; 
+            }
+
+            // زیادکردن بۆ لیستی گەڕاوەکان
+            returns.push({ 
+                ...s, 
+                count: returnCount,
+                returnDate: Date.now(), 
+                returnId: Date.now() + Math.random() 
+            });
+
+            // ئەگەر هەموو بڕەکەی گەڕاندەوە فرۆشتنەکە بسڕەوە، ئەگەر نا بڕەکەی کەم بکەرەوە
+            if (returnCount === s.count) {
+                sales.splice(idx, 1);
+            } else {
+                s.count -= returnCount;
+                s.profit = (s.sale - s.cost) * s.count;
+            }
+
+            save(); 
+            renderReports(); 
+            renderInventory(); 
+            renderReturns();
+            alert("کاڵاکە گەڕایەوە بۆ کۆگا و لیستی گەڕاوەکان");
         }
     }
 
@@ -412,7 +440,22 @@
     }
 
     function deleteReturn(id) { if(confirm("بسڕێتەوە؟")) { returns = returns.filter(r => r.returnId !== id); save(); renderReturns(); } }
-    function deleteSale(id) { if(confirm("فرۆشتن بسڕێتەوە؟")) { const s = sales.find(x => x.id == id); const inv = inventory.find(i => i.id == s.originalId); if(inv) inv.qty += s.count; sales = sales.filter(x => x.id != id); save(); renderReports(); renderInventory(); } }
+    
+    function deleteSale(id) { 
+        if(confirm("فرۆشتن بسڕێتەوە و بڕەکەی بگەڕێتەوە بۆ کۆگا؟")) { 
+            const idx = sales.findIndex(x => x.id == id);
+            if (idx !== -1) {
+                const s = sales[idx];
+                const inv = inventory.find(i => i.id == s.originalId);
+                if(inv) inv.qty += s.count; 
+                sales.splice(idx, 1);
+                save(); 
+                renderReports(); 
+                renderInventory(); 
+            }
+        } 
+    }
+
     function deleteFromInventory(id) { if(confirm("بسڕێتەوە؟")) { inventory = inventory.filter(i => i.id !== id); save(); renderInventory(); } }
     
     function editItem(id) {
