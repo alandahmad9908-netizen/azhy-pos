@@ -118,13 +118,13 @@
                 <h3>📊 ڕاپۆرت و گەڕان</h3>
                 <input type="text" id="rep-search" placeholder="🔍 گەڕان لە ڕاپۆرتەکان..." onkeyup="renderReports()">
                 <div class="stats-grid">
-                    <div class="stat-item"><h4>ئەمڕۆ</h4><p id="p-day">0</p></div>
-                    <div class="stat-item"><h4>ئەم مانگە</h4><p id="p-month">0</p></div>
+                    <div class="stat-item"><h4 id="label-day">ئەو ڕۆژە</h4><p id="p-day">0</p></div>
+                    <div class="stat-item"><h4 id="label-month">ئەو مانگە</h4><p id="p-month">0</p></div>
                     <div class="stat-item"><h4>قازانجی گشتی</h4><p id="p-year">0</p></div>
                 </div>
                 <div style="max-height: 400px; overflow-y: auto;">
                     <table>
-                        <thead><tr><th>بەروار</th><th>ناو</th><th>مایا</th><th>فرۆشتن</th><th>قازانج</th><th>کردار</th></tr></thead>
+                        <thead><tr><th>بەروار و کات</th><th>ناو</th><th>مایا</th><th>فرۆشتن</th><th>قازانج</th><th>کردار</th></tr></thead>
                         <tbody id="sales-history-table"></tbody>
                     </table>
                 </div>
@@ -173,7 +173,56 @@
     let audioCtx = null;
     let barcodeBuffer = "";
 
-    window.onload = () => { renderPOS(); };
+    const daysKurdish = ["یەکشەممە", "دووشەممە", "سێشەممە", "چوارشەممە", "پێنجشەممە", "هەینی", "شەممە"];
+
+    window.onload = () => { 
+        renderPOS(); 
+        checkMonthEndTriggers();
+        setInterval(checkMonthEndTriggers, 60000);
+    };
+
+    function checkMonthEndTriggers() {
+        const now = new Date();
+        const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0);
+        const msLeft = nextMonth - now;
+
+        const oneDayMs = 24 * 60 * 60 * 1000;
+        const oneHourMs = 60 * 60 * 1000;
+        const tenMinsMs = 10 * 60 * 1000;
+
+        const currentMonthKey = now.getFullYear() + "_" + now.getMonth();
+
+        if (msLeft <= oneDayMs && msLeft > (oneDayMs - 60000)) {
+            const alertedDay = localStorage.getItem('alert_day_' + currentMonthKey);
+            if (!alertedDay) {
+                alert("⚠️ ئاگاداری: تەنها ١ ڕۆژ ماوە بۆ کۆتایی هاتنی ئەم مانگە! تکایە ئامادەکاری بکە بۆ باکئەپ.");
+                localStorage.setItem('alert_day_' + currentMonthKey, 'true');
+            }
+        }
+
+        if (msLeft <= oneHourMs && msLeft > (oneHourMs - 60000)) {
+            const alertedHour = localStorage.getItem('alert_hour_' + currentMonthKey);
+            if (!alertedHour) {
+                alert("⏰ ئاگاداری: تەنها ١ کاتژمێر ماوە بۆ گۆڕینی مانگ! دڵنیابەرەوە لە ڕێکی داتاکانت.");
+                localStorage.setItem('alert_hour_' + currentMonthKey, 'true');
+            }
+        }
+
+        if (msLeft <= tenMinsMs && msLeft > (tenMinsMs - 60000)) {
+            const autoBackedUp = localStorage.getItem('auto_backup_' + currentMonthKey);
+            if (!autoBackedUp) {
+                const blob = new Blob([JSON.stringify({ inventory, sales, returns })], { type: 'application/json' });
+                const a = document.createElement('a'); 
+                a.href = URL.createObjectURL(blob);
+                a.download = `Auto_Backup_MonthEnd_${now.getFullYear()}_${now.getMonth()+1}.json`; 
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                localStorage.setItem('auto_backup_' + currentMonthKey, 'true');
+                alert("📥 سیستەمەکە بە شێوەیەکی خودکار باکئەپی بۆ داتاکان کرد لەبەر نزیکبوونەوەی مانگی نوێ.");
+            }
+        }
+    }
 
     function findItemByBarcode(inputCode) {
         const cleanCode = inputCode.trim();
@@ -379,13 +428,30 @@
     function renderReports() {
         const q = document.getElementById('rep-search').value.toLowerCase();
         let d=0, m=0, y=0;
-        const now = new Date();
+        
+        let targetDate = new Date();
+        if(sales.length > 0) {
+            const latestSale = sales.reduce((max, s) => s.date > max.date ? s : max, sales[0]);
+            targetDate = new Date(latestSale.date);
+        }
+
+        document.getElementById('label-day').innerText = `قازانجی ڕۆژی (${targetDate.toLocaleDateString()})`;
+        document.getElementById('label-month').innerText = `مانگی (${targetDate.getMonth() + 1})`;
+
         document.getElementById('sales-history-table').innerHTML = sales.filter(s => s.name.toLowerCase().includes(q)).sort((a,b)=>b.date-a.date).map(s => {
             const sd = new Date(s.date);
-            if(sd.toDateString() === now.toDateString()) d += s.profit;
-            if(sd.getMonth() === now.getMonth()) m += s.profit;
+            const validDate = isNaN(sd.getTime()) ? new Date() : sd;
+
+            if(validDate.toDateString() === targetDate.toDateString()) d += s.profit;
+            if(validDate.getMonth() === targetDate.getMonth() && validDate.getFullYear() === targetDate.getFullYear()) m += s.profit;
             y += s.profit;
-            return `<tr><td>${sd.toLocaleDateString()}</td><td>${s.name} (x${s.count})</td><td>${s.cost.toLocaleString()}</td><td>${s.sale.toLocaleString()}</td><td style="color:green; font-weight:bold;">${s.profit.toLocaleString()}</td><td><button class="return-btn" onclick="returnSale(${s.id})">↩️</button> <button onclick="deleteSale(${s.id})" style="color:red; background:none; border:none; cursor:pointer;">❌</button></td></tr>`;
+
+            // لێرەدا ناوی ڕۆژ و کاتژمێری تەواو دەردەهێنین
+            const dayName = daysKurdish[validDate.getDay()];
+            const formattedTime = validDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+            const fullDateTimeString = `${dayName} - ${validDate.toLocaleDateString()} (${formattedTime})`;
+
+            return `<tr><td>${fullDateTimeString}</td><td>${s.name} (x${s.count})</td><td>${s.cost.toLocaleString()}</td><td>${s.sale.toLocaleString()}</td><td style="color:green; font-weight:bold;">${s.profit.toLocaleString()}</td><td><button class="return-btn" onclick="returnSale(${s.id})">↩️</button> <button onclick="deleteSale(${s.id})" style="color:red; background:none; border:none; cursor:pointer;">❌</button></td></tr>`;
         }).join('');
         document.getElementById('p-day').innerText = d.toLocaleString();
         document.getElementById('p-month').innerText = m.toLocaleString();
@@ -411,7 +477,6 @@
                 invItem.qty += returnCount; 
             }
 
-            // زیادکردن بۆ لیستی گەڕاوەکان
             returns.push({ 
                 ...s, 
                 count: returnCount,
@@ -419,7 +484,6 @@
                 returnId: Date.now() + Math.random() 
             });
 
-            // ئەگەر هەموو بڕەکەی گەڕاندەوە فرۆشتنەکە بسڕەوە، ئەگەر نا بڕەکەی کەم بکەرەوە
             if (returnCount === s.count) {
                 sales.splice(idx, 1);
             } else {
@@ -442,7 +506,7 @@
     function deleteReturn(id) { if(confirm("بسڕێتەوە؟")) { returns = returns.filter(r => r.returnId !== id); save(); renderReturns(); } }
     
     function deleteSale(id) { 
-        if(confirm("فرۆشتن بسڕێتەوە و بڕەکەی بگەڕێتەوە بۆ کۆگا؟")) { 
+        if(confirm("فرۆشتن بسڕێتەوە و بڕەکەی بگەڕێتەوە بۆ کۆگا?")) { 
             const idx = sales.findIndex(x => x.id == id);
             if (idx !== -1) {
                 const s = sales[idx];
