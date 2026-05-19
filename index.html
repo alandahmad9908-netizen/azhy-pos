@@ -63,7 +63,6 @@
         .scan-success { border-color: var(--s) !important; box-shadow: 0 0 20px var(--s); }
         .return-btn { background: none; border: none; color: var(--w); cursor: pointer; font-size: 1.2rem; margin-left: 5px; }
 
-        /* لێرە ستایلی مۆدۆڵی ئاگەدارکردنەوەی نوێ جێگیر کراوە */
         .exp-modal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); }
         .exp-modal-content { background: white; margin: 10% auto; padding: 25px; border-radius: 15px; width: 80%; max-width: 550px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); text-align: right; }
         .exp-modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; color: var(--w); }
@@ -76,10 +75,10 @@
     <div id="expNotificationModal" class="exp-modal">
         <div class="exp-modal-content">
             <div class="exp-modal-header">
-                <h3 style="margin:0; display:flex; align-items:center; gap:10px;">⚠️ ئاگاداری کاڵا نزیک بەسەرچووەکان</h3>
+                <h3 style="margin:0; display:flex; align-items:center; gap:10px;">⚠️ ئاگاداری کاڵا نزیک بەسەرچووەکان (کەمتر لە ٦٠ ڕۆژ)</h3>
                 <span onclick="closeExpModal()" style="font-size: 24px; cursor: pointer; font-weight: bold; color: #64748b;">&times;</span>
             </div>
-            <p style="color: #64748b; font-size: 14px; margin-top: 10px;">ئەم کاڵایانەی خوارەوە کەمتر لە مانگێکیان ماوە یان بەسەرچوون. تکایە پێداچوونەوەیان بۆ بکە:</p>
+            <p style="color: #64748b; font-size: 14px; margin-top: 10px;">ئەم کاڵایانەی خوارەوە کەمتر لە دوو مانگیان ماوە یان بەسەرچوون. تکایە پێداچوونەوەیان بۆ بکە:</p>
             <div id="expModalList" class="exp-modal-list"></div>
             <button class="btn" style="background: var(--p); margin-top: 10px;" onclick="closeExpModal()">تێگەیشتم و دایبخە</button>
         </div>
@@ -198,17 +197,17 @@
     window.onload = () => { 
         renderPOS(); 
         checkMonthEndTriggers();
-        checkAndNotifyExpiry(); // لێره خودکار سەیری بەسەرچوونی کاڵاکان دەکات لە کاتی لۆدبووندا
+        checkAndNotifyExpiry(); 
         setInterval(checkMonthEndTriggers, 60000);
     };
 
-    // فانکشنی نوێ بۆ پشکنینی خۆکار و پیشاندانی مۆدۆڵی ئاگادارکردنەوە
+    // لێرەدا ژمارەی ٣٠ کراوە بە ٦٠ بۆ ئەوەی دوو مانگ پێشتر ئاگادارت بکاتەوە
     function checkAndNotifyExpiry() {
         let itemsNearExp = [];
         inventory.forEach(i => {
             if (i.exp && i.qty > 0) {
                 const diff = Math.ceil((new Date(i.exp) - new Date()) / (1000 * 60 * 60 * 24));
-                if (diff <= 30) {
+                if (diff <= 60) { 
                     itemsNearExp.push({ name: i.name, diff: diff, img: i.img });
                 }
             }
@@ -218,7 +217,6 @@
             const listDiv = document.getElementById('expModalList');
             listDiv.innerHTML = itemsNearExp.map(item => {
                 let msg = '';
-                let color = 'var(--w)';
                 if (item.diff <= 0) {
                     msg = `<span style="color:red; font-weight:bold;">❌ بەسەرچووە</span>`;
                 } else {
@@ -469,7 +467,7 @@
         if(!expDate) return { status: 'none', text: '' };
         const diff = Math.ceil((new Date(expDate) - new Date()) / (1000 * 60 * 60 * 24));
         if(diff <= 0) return { status: 'danger', text: 'بەسەرچووە' };
-        if(diff <= 30) return { status: 'warning', text: `${diff} ڕۆژ ماوە` };
+        if(diff <= 60) return { status: 'warning', text: `${diff} ڕۆژ ماوە` }; // لێرەشدا مەرجی نیشاندانی باج لە ڕووکاری فرۆشتن کرا بە ٦٠ بۆ ڕێکخستنی زیاتر
         return { status: 'normal', text: expDate };
     }
 
