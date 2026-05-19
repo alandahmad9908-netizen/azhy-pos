@@ -48,6 +48,7 @@
 
         .exp-badge { position: absolute; top: 5px; right: 5px; color: white; font-size: 10px; padding: 2px 6px; border-radius: 5px; font-weight: bold; }
         .exp-danger { background: var(--d); animation: blink 1s infinite; }
+        .exp-warning { background: var(--w); }
         @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
         input { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
         .btn { padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; color: white; width: 100%; }
@@ -61,9 +62,28 @@
         #reader::after { content: ""; position: absolute; top: 50%; left: 10%; width: 80%; height: 2px; background: rgba(239, 68, 68, 0.7); box-shadow: 0 0 10px red; z-index: 5; }
         .scan-success { border-color: var(--s) !important; box-shadow: 0 0 20px var(--s); }
         .return-btn { background: none; border: none; color: var(--w); cursor: pointer; font-size: 1.2rem; margin-left: 5px; }
+
+        /* لێرە ستایلی مۆدۆڵی ئاگەدارکردنەوەی نوێ جێگیر کراوە */
+        .exp-modal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); }
+        .exp-modal-content { background: white; margin: 10% auto; padding: 25px; border-radius: 15px; width: 80%; max-width: 550px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); text-align: right; }
+        .exp-modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; color: var(--w); }
+        .exp-modal-list { max-height: 250px; overflow-y: auto; margin: 15px 0; padding-right: 10px; }
+        .exp-modal-item { padding: 10px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
     </style>
 </head>
 <body>
+
+    <div id="expNotificationModal" class="exp-modal">
+        <div class="exp-modal-content">
+            <div class="exp-modal-header">
+                <h3 style="margin:0; display:flex; align-items:center; gap:10px;">⚠️ ئاگاداری کاڵا نزیک بەسەرچووەکان</h3>
+                <span onclick="closeExpModal()" style="font-size: 24px; cursor: pointer; font-weight: bold; color: #64748b;">&times;</span>
+            </div>
+            <p style="color: #64748b; font-size: 14px; margin-top: 10px;">ئەم کاڵایانەی خوارەوە کەمتر لە مانگێکیان ماوە یان بەسەرچوون. تکایە پێداچوونەوەیان بۆ بکە:</p>
+            <div id="expModalList" class="exp-modal-list"></div>
+            <button class="btn" style="background: var(--p); margin-top: 10px;" onclick="closeExpModal()">تێگەیشتم و دایبخە</button>
+        </div>
+    </div>
 
     <div class="sidebar">
         <h2>Azhy Cosmetic <span id="audio-status" onclick="initAudio()" style="cursor:pointer; font-size: 12px; display: block; color: var(--s);">🔊 چالاککردنی دەنگ</span></h2>
@@ -178,8 +198,49 @@
     window.onload = () => { 
         renderPOS(); 
         checkMonthEndTriggers();
+        checkAndNotifyExpiry(); // لێره خودکار سەیری بەسەرچوونی کاڵاکان دەکات لە کاتی لۆدبووندا
         setInterval(checkMonthEndTriggers, 60000);
     };
+
+    // فانکشنی نوێ بۆ پشکنینی خۆکار و پیشاندانی مۆدۆڵی ئاگادارکردنەوە
+    function checkAndNotifyExpiry() {
+        let itemsNearExp = [];
+        inventory.forEach(i => {
+            if (i.exp && i.qty > 0) {
+                const diff = Math.ceil((new Date(i.exp) - new Date()) / (1000 * 60 * 60 * 24));
+                if (diff <= 30) {
+                    itemsNearExp.push({ name: i.name, diff: diff, img: i.img });
+                }
+            }
+        });
+
+        if (itemsNearExp.length > 0) {
+            const listDiv = document.getElementById('expModalList');
+            listDiv.innerHTML = itemsNearExp.map(item => {
+                let msg = '';
+                let color = 'var(--w)';
+                if (item.diff <= 0) {
+                    msg = `<span style="color:red; font-weight:bold;">❌ بەسەرچووە</span>`;
+                } else {
+                    msg = `<span style="color:var(--w); font-weight:bold;">⚠️ ${item.diff} ڕۆژی ماوە</span>`;
+                }
+                return `
+                    <div class="exp-modal-item">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <img src="${item.img}" width="35" height="35" style="border-radius:5px; object-fit:cover;">
+                            <strong style="font-size:14px;">${item.name}</strong>
+                        </div>
+                        <div>${msg}</div>
+                    </div>
+                `;
+            }).join('');
+            document.getElementById('expNotificationModal').style.display = 'block';
+        }
+    }
+
+    function closeExpModal() {
+        document.getElementById('expNotificationModal').style.display = 'none';
+    }
 
     function checkMonthEndTriggers() {
         const now = new Date();
@@ -253,7 +314,12 @@
             tc += (i.cost * i.qty); ts += (i.sale * i.qty); tp += ((i.sale - i.cost) * i.qty);
             const exp = checkExpiry(i.exp);
             const barcodeContent = i.barcode ? `<div class="barcode-toggle-btn" onclick="toggleBarcode(this, '${i.barcode}')">👁️ نیشاندان</div>` : '-';
-            return `<tr><td><img src="${i.img}" width="30"></td><td>${i.name}</td><td>${barcodeContent}</td><td>${i.cost.toLocaleString()}</td><td>${i.sale.toLocaleString()}</td><td>${i.qty}</td><td style="color:${exp.status==='danger'?'red':'green'}">${exp.text || '-'}</td><td><button onclick="editItem(${i.id})">🛠️</button> <button class="del-btn" onclick="deleteFromInventory(${i.id})">❌</button></td></tr>`;
+            
+            let textColor = 'green';
+            if (exp.status === 'danger') textColor = 'red';
+            else if (exp.status === 'warning') textColor = 'var(--w)';
+
+            return `<tr><td><img src="${i.img}" width="30"></td><td>${i.name}</td><td>${barcodeContent}</td><td>${i.cost.toLocaleString()}</td><td>${i.sale.toLocaleString()}</td><td>${i.qty}</td><td style="color:${textColor}; font-weight:bold;">${exp.text || '-'}</td><td><button onclick="editItem(${i.id})">🛠️</button> <button class="del-btn" onclick="deleteFromInventory(${i.id})">❌</button></td></tr>`;
         }).join('');
         document.getElementById('stk-cost').innerText = tc.toLocaleString();
         document.getElementById('stk-sale').innerText = ts.toLocaleString();
@@ -266,8 +332,15 @@
             return (i.name.toLowerCase().includes(q) || (i.barcode && i.barcode.toLowerCase().includes(q))) && i.qty > 0;
         }).map(i => {
             const exp = checkExpiry(i.exp);
+            let badgeHtml = '';
+            if (exp.status === 'danger') {
+                badgeHtml = `<span class="exp-badge exp-danger">${exp.text}</span>`;
+            } else if (exp.status === 'warning') {
+                badgeHtml = `<span class="exp-badge exp-warning">${exp.text}</span>`;
+            }
+
             return `<div class="item-card" onclick="addToCart(${i.id})">
-                ${exp.text ? `<span class="exp-badge exp-danger">${exp.text}</span>` : ''}
+                ${badgeHtml}
                 <img src="${i.img}">
                 <div style="font-weight:bold; margin-top:5px;">${i.name}</div>
                 <div class="price-text" style="color:var(--a);">${i.sale.toLocaleString()}</div>
@@ -396,7 +469,7 @@
         if(!expDate) return { status: 'none', text: '' };
         const diff = Math.ceil((new Date(expDate) - new Date()) / (1000 * 60 * 60 * 24));
         if(diff <= 0) return { status: 'danger', text: 'بەسەرچووە' };
-        if(diff <= 30) return { status: 'danger', text: `${diff} ڕۆژ` };
+        if(diff <= 30) return { status: 'warning', text: `${diff} ڕۆژ ماوە` };
         return { status: 'normal', text: expDate };
     }
 
@@ -446,7 +519,6 @@
             if(validDate.getMonth() === targetDate.getMonth() && validDate.getFullYear() === targetDate.getFullYear()) m += s.profit;
             y += s.profit;
 
-            // لێرەدا ناوی ڕۆژ و کاتژمێری تەواو دەردەهێنین
             const dayName = daysKurdish[validDate.getDay()];
             const formattedTime = validDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
             const fullDateTimeString = `${dayName} - ${validDate.toLocaleDateString()} (${formattedTime})`;
