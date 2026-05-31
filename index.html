@@ -63,12 +63,23 @@
         .scan-success { border-color: var(--s) !important; box-shadow: 0 0 20px var(--s); }
         .return-btn { background: none; border: none; color: var(--w); cursor: pointer; font-size: 1.2rem; margin-left: 5px; }
 
-        /* لێرەدا مۆدۆڵەکە کراوە بە Flexbox بۆ ئەوەی ڕێک لە ناوەڕاستی تەواوی شاشەکەدا جێگیر بێت */
-        .exp-modal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); justify-content: center; align-items: center; }
-        .exp-modal-content { background: white; padding: 25px; border-radius: 15px; width: 80%; max-width: 550px; box-shadow: 0 5px 25px rgba(0,0,0,0.3); text-align: right; margin: auto; }
+        .exp-modal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); }
+        .exp-modal-content { background: white; margin: 10% auto; padding: 25px; border-radius: 15px; width: 80%; max-width: 550px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); text-align: right; }
         .exp-modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; color: var(--w); }
         .exp-modal-list { max-height: 250px; overflow-y: auto; margin: 15px 0; padding-right: 10px; }
         .exp-modal-item { padding: 10px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
+
+        /* شێوازی نوێی ئاگادارکردنەوەکان */
+        #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 10001; }
+        .toast { 
+            background: var(--p); color: white; padding: 15px 25px; border-radius: 10px; 
+            margin-top: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); 
+            display: flex; align-items: center; gap: 10px; animation: slideIn 0.4s ease-out;
+            border-right: 5px solid var(--a);
+        }
+        .toast.warning { border-right-color: var(--w); }
+        .toast.danger { border-right-color: var(--d); }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
     </style>
 </head>
 <body>
@@ -84,6 +95,21 @@
             <button class="btn" style="background: var(--p); margin-top: 10px;" onclick="closeExpModal()">تێگەیشتم و دایبخە</button>
         </div>
     </div>
+
+    <div id="monthEndModal" class="exp-modal">
+        <div class="exp-modal-content">
+            <div class="exp-modal-header">
+                <h3 id="monthEndTitle" style="margin:0; display:flex; align-items:center; gap:10px;"></h3>
+                <span onclick="closeMonthEndModal()" style="font-size: 24px; cursor: pointer; font-weight: bold; color: #64748b;">&times;</span>
+            </div>
+            <p id="monthEndBody" style="color: #64748b; font-size: 18px; margin-top: 20px; text-align: center; line-height: 1.6;"></p>
+            <div id="monthEndFooter" style="margin-top: 20px; display: flex; gap: 10px;">
+                <button class="btn" style="background: var(--p);" onclick="closeMonthEndModal()">پاشان</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
 
     <div class="sidebar">
         <h2>Azhy Cosmetic <span id="audio-status" onclick="initAudio()" style="cursor:pointer; font-size: 12px; display: block; color: var(--s);">🔊 چالاککردنی دەنگ</span></h2>
@@ -192,6 +218,9 @@
     let scanLocked = false;
     let audioCtx = null;
     let barcodeBuffer = "";
+    
+    // ئەمانە بەکاردێن بۆ ئەوەی لە کاتی ڕیفرێشکردن ئاگادارییەکان دووبارە ببنەوە
+    let sessionAlerts = { day: false, hour: false, fiveMin: false };
 
     const daysKurdish = ["یەکشەممە", "دووشەممە", "سێشەممە", "چوارشەممە", "پێنجشەممە", "هەینی", "شەممە"];
 
@@ -199,9 +228,10 @@
         renderPOS(); 
         checkMonthEndTriggers();
         checkAndNotifyExpiry(); 
-        setInterval(checkMonthEndTriggers, 60000);
+        setInterval(checkMonthEndTriggers, 10000); // پشکنین هەر ١٠ چرکەیەک بۆ وردی کات
     };
 
+    // لێرەدا ژمارەی ٣٠ کراوە بە ٦٠ بۆ ئەوەی دوو مانگ پێشتر ئاگادارت بکاتەوە
     function checkAndNotifyExpiry() {
         let itemsNearExp = [];
         inventory.forEach(i => {
@@ -232,12 +262,45 @@
                     </div>
                 `;
             }).join('');
-            document.getElementById('expNotificationModal').style.display = 'flex';
+            document.getElementById('expNotificationModal').style.display = 'block';
         }
     }
 
     function closeExpModal() {
         document.getElementById('expNotificationModal').style.display = 'none';
+    }
+
+    function showMonthEndModal(title, body, type = 'warning', showBackupBtn = true) {
+        const titleEl = document.getElementById('monthEndTitle');
+        const footerEl = document.getElementById('monthEndFooter');
+        
+        titleEl.innerHTML = title;
+        titleEl.style.color = (type === 'danger') ? 'var(--d)' : (type === 'info' ? 'var(--s)' : 'var(--w)');
+        document.getElementById('monthEndBody').innerHTML = body;
+        
+        // زیادکردنی دوگمەکان بۆ ناو پەنجەرەکە
+        footerEl.innerHTML = `<button class="btn" style="background: #64748b;" onclick="closeMonthEndModal()">پاشان</button>`;
+        if (showBackupBtn) {
+            footerEl.innerHTML += `<button class="btn" style="background: var(--s);" onclick="backupData(); closeMonthEndModal();">📥 ئێستا باکئەپ بکە</button>`;
+        }
+
+        document.getElementById('monthEndModal').style.display = 'block';
+        
+        if (typeof playAlertSound === 'function') playAlertSound();
+    }
+
+    function closeMonthEndModal() {
+        document.getElementById('monthEndModal').style.display = 'none';
+    }
+
+    // فانکشن بۆ نیشاندانی ئاگادارکردنەوە لەسەر شاشە
+    function showToast(msg, type = 'info') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.innerHTML = `<span>${msg}</span>`;
+        container.appendChild(toast);
+        setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 500); }, 8000);
     }
 
     function checkMonthEndTriggers() {
@@ -247,38 +310,43 @@
 
         const oneDayMs = 24 * 60 * 60 * 1000;
         const oneHourMs = 60 * 60 * 1000;
-        const tenMinsMs = 10 * 60 * 1000;
+        const fiveMinsMs = 5 * 60 * 1000;
+        const oneMinMs = 1 * 60 * 1000;
+        const thirtySecsMs = 30 * 1000;
 
         const currentMonthKey = now.getFullYear() + "_" + now.getMonth();
 
-        if (msLeft <= oneDayMs && msLeft > (oneDayMs - 60000)) {
-            const alertedDay = localStorage.getItem('alert_day_' + currentMonthKey);
-            if (!alertedDay) {
-                alert("⚠️ ئاگاداری: تەنها ١ ڕۆژ ماوە بۆ کۆتایی هاتنی ئەم مانگە! تکایە ئامادەکاری بکە بۆ باکئەپ.");
-                localStorage.setItem('alert_day_' + currentMonthKey, 'true');
+        // ئاگاداری ١ ڕۆژ پێشتر
+        if (msLeft <= oneDayMs && msLeft > oneHourMs) { 
+            if (!sessionAlerts.day) {
+                showMonthEndModal("⚠️ ئاگاداری: ١ ڕۆژ ماوە", "ئەمڕۆ کۆتا ڕۆژی مانگە. تکایە بۆ پاراستنی داتاکانت باکئەپ وەربگرە پێش ئەوەی قازانجەکان سفر ببنەوە.", "warning", true);
+                sessionAlerts.day = true;
             }
         }
 
-        if (msLeft <= oneHourMs && msLeft > (oneHourMs - 60000)) {
-            const alertedHour = localStorage.getItem('alert_hour_' + currentMonthKey);
-            if (!alertedHour) {
-                alert("⏰ ئاگاداری: تەنها ١ کاتژمێر ماوە بۆ گۆڕینی مانگ! دڵنیابەرەوە لە ڕێکی داتاکانت.");
-                localStorage.setItem('alert_hour_' + currentMonthKey, 'true');
+        // ئاگاداری ١ کاتژمێر پێشتر
+        if (msLeft <= oneHourMs && msLeft > fiveMinsMs) {
+            if (!sessionAlerts.hour) {
+                showMonthEndModal("⏰ کاتژمێرێکی کۆتایی", "تەنها ١ کاتژمێر ماوە! دڵنیابەرەوە کە باکئەپت کردووە.", "warning", true);
+                sessionAlerts.hour = true;
             }
         }
 
-        if (msLeft <= tenMinsMs && msLeft > (tenMinsMs - 60000)) {
+        // ئاگاداری ٥ خولەک پێشتر
+        if (msLeft <= fiveMinsMs && msLeft > thirtySecsMs) {
+            if (!sessionAlerts.fiveMin) {
+                showMonthEndModal("🚨 زۆر بەپەلە", "تەنها ٥ خولەک ماوە! تکایە ئێستا دوگمەی باکئەپ دابگرە.", "danger", true);
+                sessionAlerts.fiveMin = true;
+            }
+        }
+
+        // باکئەپی خودکار ٣٠ چرکە پێش گۆڕینی مانگ
+        if (msLeft <= thirtySecsMs && msLeft > 0) {
             const autoBackedUp = localStorage.getItem('auto_backup_' + currentMonthKey);
             if (!autoBackedUp) {
-                const blob = new Blob([JSON.stringify({ inventory, sales, returns })], { type: 'application/json' });
-                const a = document.createElement('a'); 
-                a.href = URL.createObjectURL(blob);
-                a.download = `Auto_Backup_MonthEnd_${now.getFullYear()}_${now.getMonth()+1}.json`; 
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
+                showMonthEndModal("📥 باکئەپی خودکار", "سیستەمەکە ئێستا بە شێوەی خودکار باکئەپ وەردەگرێت بۆ ئەوەی داتاکانت نەفەوتێن.", "info", false);
+                backupData();
                 localStorage.setItem('auto_backup_' + currentMonthKey, 'true');
-                alert("📥 سیستەمەکە بە شێوەیەکی خودکار باکئەپی بۆ داتاکان کرد لەبەر نزیکبوونەوەی مانگی نوێ.");
             }
         }
     }
@@ -467,7 +535,7 @@
         if(!expDate) return { status: 'none', text: '' };
         const diff = Math.ceil((new Date(expDate) - new Date()) / (1000 * 60 * 60 * 24));
         if(diff <= 0) return { status: 'danger', text: 'بەسەرچووە' };
-        if(diff <= 60) return { status: 'warning', text: `${diff} ڕۆژ ماوە` };
+        if(diff <= 60) return { status: 'warning', text: `${diff} ڕۆژ ماوە` }; // لێرەشدا مەرجی نیشاندانی باج لە ڕووکاری فرۆشتن کرا بە ٦٠ بۆ ڕێکخستنی زیاتر
         return { status: 'normal', text: expDate };
     }
 
@@ -500,21 +568,19 @@
         const q = document.getElementById('rep-search').value.toLowerCase();
         let d=0, m=0, y=0;
         
-        let targetDate = new Date();
-        if(sales.length > 0) {
-            const latestSale = sales.reduce((max, s) => s.date > max.date ? s : max, sales[0]);
-            targetDate = new Date(latestSale.date);
-        }
+        const now = new Date();
+        const businessNow = new Date(now.getTime() - (2 * 60 * 60 * 1000)); // کەمکردنەوەی ٢ کاتژمێر بۆ ئەوەی ڕۆژ لە ٢ی شەو دەست پێ بکات
 
-        document.getElementById('label-day').innerText = `قازانجی ڕۆژی (${targetDate.toLocaleDateString()})`;
-        document.getElementById('label-month').innerText = `مانگی (${targetDate.getMonth() + 1})`;
+        document.getElementById('label-day').innerText = `قازانجی ڕۆژی (${businessNow.toLocaleDateString()})`;
+        document.getElementById('label-month').innerText = `مانگی (${now.getMonth() + 1})`;
 
         document.getElementById('sales-history-table').innerHTML = sales.filter(s => s.name.toLowerCase().includes(q)).sort((a,b)=>b.date-a.date).map(s => {
             const sd = new Date(s.date);
             const validDate = isNaN(sd.getTime()) ? new Date() : sd;
+            const businessSaleDate = new Date(validDate.getTime() - (2 * 60 * 60 * 1000));
 
-            if(validDate.toDateString() === targetDate.toDateString()) d += s.profit;
-            if(validDate.getMonth() === targetDate.getMonth() && validDate.getFullYear() === targetDate.getFullYear()) m += s.profit;
+            if(businessSaleDate.toDateString() === businessNow.toDateString()) d += s.profit;
+            if(validDate.getMonth() === now.getMonth() && validDate.getFullYear() === now.getFullYear()) m += s.profit;
             y += s.profit;
 
             const dayName = daysKurdish[validDate.getDay()];
