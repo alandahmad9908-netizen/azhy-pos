@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>Azhy Cosmetic - Ultra Fast System</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;700&display=swap');
         :root { --p: #0f172a; --a: #3b82f6; --s: #10b981; --bg: #f1f5f9; --d: #ef4444; --w: #f59e0b; }
@@ -63,11 +64,28 @@
         .scan-success { border-color: var(--s) !important; box-shadow: 0 0 20px var(--s); }
         .return-btn { background: none; border: none; color: var(--w); cursor: pointer; font-size: 1.2rem; margin-left: 5px; }
 
-        .exp-modal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); }
-        .exp-modal-content { background: white; margin: 10% auto; padding: 25px; border-radius: 15px; width: 80%; max-width: 550px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); text-align: right; }
-        .exp-modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; color: var(--w); }
-        .exp-modal-list { max-height: 250px; overflow-y: auto; margin: 15px 0; padding-right: 10px; }
-        .exp-modal-item { padding: 10px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
+        /* شێوازی نوێی ئاگادارکردنەوەی بەسەرچوون */
+        .exp-alert-container { position: fixed; bottom: 20px; left: 20px; z-index: 10000; display: none; }
+        .exp-fab { 
+            background: var(--w); color: white; width: 55px; height: 55px; border-radius: 50%; 
+            display: flex; align-items: center; justify-content: center; cursor: pointer; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2); position: relative; transition: 0.3s;
+        }
+        .exp-fab:hover { transform: scale(1.1); }
+        .exp-badge-count { 
+            position: absolute; top: -5px; right: -5px; background: var(--d); 
+            color: white; border-radius: 50%; width: 22px; height: 22px; 
+            font-size: 12px; display: flex; align-items: center; justify-content: center; border: 2px solid white; 
+        }
+        .exp-floating-panel { 
+            display: none; background: white; width: 320px; max-height: 450px; 
+            border-radius: 15px; box-shadow: 0 5px 25px rgba(0,0,0,0.2); 
+            margin-bottom: 15px; overflow: hidden; border: 1px solid #eee; animation: slideUp 0.3s ease;
+        }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .exp-panel-header { background: #f8fafc; padding: 12px 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; font-weight: bold; color: var(--p); }
+        .exp-panel-list { max-height: 350px; overflow-y: auto; padding: 10px; }
+        .exp-item-row { display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid #f1f5f9; font-size: 13px; align-items: center; }
 
         /* شێوازی نوێی ئاگادارکردنەوەکان */
         #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 10001; }
@@ -77,22 +95,51 @@
             display: flex; align-items: center; gap: 10px; animation: slideIn 0.4s ease-out;
             border-right: 5px solid var(--a);
         }
+        .toast .close-toast {
+            margin-right: auto;
+            cursor: pointer;
+            font-weight: bold;
+            opacity: 0.7;
+            padding-right: 10px;
+        }
+        .toast.info { border-right-color: var(--a); }
         .toast.warning { border-right-color: var(--w); }
         .toast.danger { border-right-color: var(--d); }
+        .toast.success { border-right-color: var(--s); }
         @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
     </style>
 </head>
 <body>
 
-    <div id="expNotificationModal" class="exp-modal">
-        <div class="exp-modal-content">
-            <div class="exp-modal-header">
-                <h3 style="margin:0; display:flex; align-items:center; gap:10px;">⚠️ ئاگاداری کاڵا نزیک بەسەرچووەکان (کەمتر لە ٦٠ ڕۆژ)</h3>
-                <span onclick="closeExpModal()" style="font-size: 24px; cursor: pointer; font-weight: bold; color: #64748b;">&times;</span>
+    <!-- ئاگادارکردنەوەی سەرەوەی بەسەرچوون -->
+    <div id="exp-alert-ui" class="exp-alert-container">
+        <div id="exp-panel" class="exp-floating-panel">
+            <div class="exp-panel-header">
+                <span>⚠️ کاڵا نزیک بەسەرچووەکان</span>
+                <span onclick="toggleExpPanel()" style="cursor:pointer; font-size:20px;">✕</span>
             </div>
-            <p style="color: #64748b; font-size: 14px; margin-top: 10px;">ئەم کاڵایانەی خوارەوە کەمتر لە دوو مانگیان ماوە یان بەسەرچوون. تکایە پێداچوونەوەیان بۆ بکە:</p>
-            <div id="expModalList" class="exp-modal-list"></div>
-            <button class="btn" style="background: var(--p); margin-top: 10px;" onclick="closeExpModal()">تێگەیشتم و دایبخە</button>
+            <div id="exp-panel-list" class="exp-panel-list"></div>
+        </div>
+        <div class="exp-fab" onclick="toggleExpPanel()">
+            <span style="font-size: 24px;">⚠️</span>
+            <div id="exp-count" class="exp-badge-count">0</div>
+            <div onclick="event.stopPropagation(); hideExpAlertPermanently()" style="position:absolute; bottom:-10px; left:-10px; background:#eee; color:#666; border-radius:50%; width:18px; height:18px; font-size:10px; display:flex; align-items:center; justify-content:center; border:1px solid #ccc;">✕</div>
+        </div>
+    </div>
+
+    <!-- ئاگادارکردنەوەی کەمیی کاڵا -->
+    <div id="low-stock-alert-ui" class="exp-alert-container" style="bottom: 90px;">
+        <div id="low-stock-panel" class="exp-floating-panel">
+            <div class="exp-panel-header">
+                <span>⚠️ کاڵا کەمبووەکان (٢ یان کەمتر)</span>
+                <span onclick="toggleLowStockPanel()" style="cursor:pointer; font-size:20px;">✕</span>
+            </div>
+            <div id="low-stock-panel-list" class="exp-panel-list"></div>
+        </div>
+        <div class="exp-fab" style="background: var(--d);" onclick="toggleLowStockPanel()">
+            <span style="font-size: 24px;">📦</span>
+            <div id="low-stock-count" class="exp-badge-count">0</div>
+            <div onclick="event.stopPropagation(); hideLowStockAlertPermanently()" style="position:absolute; bottom:-10px; left:-10px; background:#eee; color:#666; border-radius:50%; width:18px; height:18px; font-size:10px; display:flex; align-items:center; justify-content:center; border:1px solid #ccc;">✕</div>
         </div>
     </div>
 
@@ -117,6 +164,7 @@
         <div class="nav-btn" onclick="showSec('inventory', this)">📦 کۆگا</div>
         <div class="nav-btn" onclick="showSec('reports', this)">📊 ڕاپۆرت</div>
         <div class="nav-btn" onclick="showSec('returns', this)">↩️ گەڕاوەکان</div>
+        <div class="nav-btn" onclick="showSec('stockin', this)">📥 داخلکراوەکان</div>
         <div class="nav-btn" onclick="showSec('add', this)">➕ کاڵای نوێ</div>
     </div>
 
@@ -144,11 +192,15 @@
 
         <div id="inventory" class="section">
             <div class="card">
-                <input type="text" id="inv-search" placeholder="🔍 گەڕان لە کۆگا..." onkeyup="renderInventory()">
+                <div style="display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
+                    <input type="text" id="inv-search" style="flex: 1; min-width: 200px;" placeholder="🔍 گەڕان لە کۆگا..." onkeyup="renderInventory()">
+                    <select id="inv-month-select" onchange="renderInventory()" style="width: 150px; padding: 10px; border-radius: 8px; border: 1px solid #ddd;"></select>
+                    <select id="inv-year-select" onchange="renderInventory()" style="width: 100px; padding: 10px; border-radius: 8px; border: 1px solid #ddd;"></select>
+                </div>
                 <div class="stats-grid">
-                    <div class="stat-item"><h4>مایای گشتی</h4><p id="stk-cost">0</p></div>
-                    <div class="stat-item"><h4>فرۆشتنی گشتی</h4><p id="stk-sale">0</p></div>
-                    <div class="stat-item"><h4>قازانج</h4><p id="stk-profit">0</p></div>
+                    <div class="stat-item"><h4 id="inv-label-cost">مایای گشتی</h4><p id="stk-cost">0</p></div>
+                    <div class="stat-item"><h4 id="inv-label-sale">فرۆشتنی گشتی</h4><p id="stk-sale">0</p></div>
+                    <div class="stat-item"><h4 id="inv-label-profit">قازانج</h4><p id="stk-profit">0</p></div>
                 </div>
                 <div style="overflow-x: auto;">
                     <table>
@@ -162,11 +214,18 @@
         <div id="reports" class="section">
             <div class="card">
                 <h3>📊 ڕاپۆرت و گەڕان</h3>
-                <input type="text" id="rep-search" placeholder="🔍 گەڕان لە ڕاپۆرتەکان..." onkeyup="renderReports()">
+                <div style="display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
+                    <input type="text" id="rep-search" style="flex: 1; min-width: 200px;" placeholder="🔍 گەڕان لە ڕاپۆرتەکان..." onkeyup="renderReports()">
+                    <select id="rep-month-select" onchange="renderReports()" style="width: 150px; padding: 10px; border-radius: 8px; border: 1px solid #ddd;"></select>
+                    <select id="rep-year-select" onchange="renderReports()" style="width: 100px; padding: 10px; border-radius: 8px; border: 1px solid #ddd;"></select>
+                </div>
                 <div class="stats-grid">
                     <div class="stat-item"><h4 id="label-day">ئەو ڕۆژە</h4><p id="p-day">0</p></div>
                     <div class="stat-item"><h4 id="label-month">ئەو مانگە</h4><p id="p-month">0</p></div>
                     <div class="stat-item"><h4>قازانجی گشتی</h4><p id="p-year">0</p></div>
+                </div>
+                <div class="card" style="height: 300px; position: relative; margin-top: 10px;">
+                    <canvas id="annualChart"></canvas>
                 </div>
                 <div style="max-height: 400px; overflow-y: auto;">
                     <table>
@@ -192,6 +251,24 @@
             </div>
         </div>
 
+        <div id="stockin" class="section">
+            <div class="card">
+                <h3>📥 مێژووی زیادکردنی کاڵا (Stock In)</h3>
+                <div style="display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
+                    <select id="stk-month-select" onchange="renderStockInHistory()" style="width: 150px; padding: 10px; border-radius: 8px; border: 1px solid #ddd;"></select>
+                    <select id="stk-year-select" onchange="renderStockInHistory()" style="width: 100px; padding: 10px; border-radius: 8px; border: 1px solid #ddd;"></select>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-item"><h4>کۆی نرخی کڕین (مایا)</h4><p id="stk-in-value">0</p></div>
+                    <div class="stat-item"><h4>کۆی بڕی داخلکراو</h4><p id="stk-in-qty">0</p></div>
+                </div>
+                <table>
+                    <thead><tr><th>بەروار و کات</th><th>ناوی کاڵا</th><th>بڕی زیادکراو</th><th>تێچوو (تاک)</th><th>کۆی تێچوو</th><th>کردار</th></tr></thead>
+                    <tbody id="stockin-table"></tbody>
+                </table>
+            </div>
+        </div>
+
         <div id="add" class="section">
             <div class="card" style="max-width: 500px; margin: auto;">
                 <h3 id="form-title">تۆمارکردنی کاڵا</h3>
@@ -213,6 +290,7 @@
     let inventory = JSON.parse(localStorage.getItem('shop_v5_inv')) || [];
     let sales = JSON.parse(localStorage.getItem('shop_v5_sales')) || [];
     let returns = JSON.parse(localStorage.getItem('shop_v5_returns')) || [];
+    let stockInHistory = JSON.parse(localStorage.getItem('shop_v5_stockin')) || [];
     let cart = [];
     let html5QrCode = null;
     let scanLocked = false;
@@ -227,47 +305,56 @@
     window.onload = () => { 
         renderPOS(); 
         checkMonthEndTriggers();
+        checkLowStock();
         checkAndNotifyExpiry(); 
         setInterval(checkMonthEndTriggers, 10000); // پشکنین هەر ١٠ چرکەیەک بۆ وردی کات
     };
 
     // لێرەدا ژمارەی ٣٠ کراوە بە ٦٠ بۆ ئەوەی دوو مانگ پێشتر ئاگادارت بکاتەوە
     function checkAndNotifyExpiry() {
-        let itemsNearExp = [];
-        inventory.forEach(i => {
-            if (i.exp && i.qty > 0) {
-                const diff = Math.ceil((new Date(i.exp) - new Date()) / (1000 * 60 * 60 * 24));
-                if (diff <= 60) { 
-                    itemsNearExp.push({ name: i.name, diff: diff, img: i.img });
-                }
-            }
+        let itemsNearExp = inventory.filter(i => {
+            if (!i.exp || i.qty <= 0) return false;
+            const diff = Math.ceil((new Date(i.exp) - new Date()) / (1000 * 60 * 60 * 24));
+            return diff <= 60;
         });
 
+        const expUI = document.getElementById('exp-alert-ui');
+        const isInventorySection = document.getElementById('inventory').classList.contains('active');
+        const fab = expUI.querySelector('.exp-fab');
+
         if (itemsNearExp.length > 0) {
-            const listDiv = document.getElementById('expModalList');
-            listDiv.innerHTML = itemsNearExp.map(item => {
+            document.getElementById('exp-alert-ui').style.display = 'block';
+            document.getElementById('exp-count').innerText = itemsNearExp.length;
+            
+            let hasExpired = false;
+            const listHtml = itemsNearExp.map(item => {
+                const diff = Math.ceil((new Date(item.exp) - new Date()) / (1000 * 60 * 60 * 24));
                 let msg = '';
-                if (item.diff <= 0) {
-                    msg = `<span style="color:red; font-weight:bold;">❌ بەسەرچووە</span>`;
-                } else {
-                    msg = `<span style="color:var(--w); font-weight:bold;">⚠️ ${item.diff} ڕۆژی ماوە</span>`;
-                }
-                return `
-                    <div class="exp-modal-item">
-                        <div style="display:flex; align-items:center; gap:10px;">
-                            <img src="${item.img}" width="35" height="35" style="border-radius:5px; object-fit:cover;">
-                            <strong style="font-size:14px;">${item.name}</strong>
-                        </div>
-                        <div>${msg}</div>
-                    </div>
-                `;
+                if (diff <= 0) {
+                    msg = `<span style="color:red; font-weight:bold;">بەسەرچووە</span>`;
+                    hasExpired = true;
+                } else msg = `<span style="color:var(--w); font-weight:bold;">${diff} ڕۆژ</span>`;
+                
+                return `<div class="exp-item-row"><span>${item.name}</span>${msg}</div>`;
             }).join('');
-            document.getElementById('expNotificationModal').style.display = 'block';
+
+            if (hasExpired) fab.style.background = 'var(--d)';
+            else fab.style.background = 'var(--w)';
+            
+            document.getElementById('exp-panel-list').innerHTML = listHtml;
+            expUI.style.display = isInventorySection ? 'block' : 'none';
+        } else {
+            expUI.style.display = 'none';
         }
     }
 
-    function closeExpModal() {
-        document.getElementById('expNotificationModal').style.display = 'none';
+    function toggleExpPanel() {
+        const panel = document.getElementById('exp-panel');
+        panel.style.display = (panel.style.display === 'block') ? 'none' : 'block';
+    }
+
+    function hideExpAlertPermanently() {
+        document.getElementById('exp-alert-ui').style.display = 'none';
     }
 
     function showMonthEndModal(title, body, type = 'warning', showBackupBtn = true) {
@@ -298,7 +385,17 @@
         const container = document.getElementById('toast-container');
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
-        toast.innerHTML = `<span>${msg}</span>`;
+
+        let icon = 'ℹ️';
+        if (type === 'warning') icon = '⚠️';
+        if (type === 'danger') icon = '🚫';
+        if (type === 'success') icon = '✅';
+
+        toast.innerHTML = `
+            <span style="font-size: 1.2rem;">${icon}</span>
+            <span>${msg}</span>
+            <span class="close-toast" onclick="this.parentElement.remove()">✕</span>
+        `;
         container.appendChild(toast);
         setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 500); }, 8000);
     }
@@ -351,6 +448,34 @@
         }
     }
 
+    function checkLowStock() {
+        const lowStockItems = inventory.filter(i => i.qty <= 2 && i.qty > 0);
+        const lowStockUI = document.getElementById('low-stock-alert-ui');
+        const isInventorySection = document.getElementById('inventory').classList.contains('active');
+
+        if (lowStockItems.length > 0) {
+            document.getElementById('low-stock-count').innerText = lowStockItems.length;
+            
+            const listHtml = lowStockItems.map(item => {
+                return `<div class="exp-item-row"><span>${item.name}</span><span style="color:var(--d); font-weight:bold;">ماوە: ${item.qty}</span></div>`;
+            }).join('');
+            
+            document.getElementById('low-stock-panel-list').innerHTML = listHtml;
+            lowStockUI.style.display = isInventorySection ? 'block' : 'none';
+        } else {
+            lowStockUI.style.display = 'none';
+        }
+    }
+
+    function toggleLowStockPanel() {
+        const panel = document.getElementById('low-stock-panel');
+        panel.style.display = (panel.style.display === 'block') ? 'none' : 'block';
+    }
+
+    function hideLowStockAlertPermanently() {
+        document.getElementById('low-stock-alert-ui').style.display = 'none';
+    }
+
     function findItemByBarcode(inputCode) {
         const cleanCode = inputCode.trim();
         return inventory.find(i => {
@@ -373,23 +498,69 @@
 
     function renderInventory() {
         const q = document.getElementById('inv-search').value.toLowerCase();
-        let tc=0, ts=0, tp=0;
-        document.getElementById('inventory-table').innerHTML = inventory.filter(i => {
-            return i.name.toLowerCase().includes(q) || (i.barcode && i.barcode.toLowerCase().includes(q));
-        }).map(i => {
-            tc += (i.cost * i.qty); ts += (i.sale * i.qty); tp += ((i.sale - i.cost) * i.qty);
-            const exp = checkExpiry(i.exp);
-            const barcodeContent = i.barcode ? `<div class="barcode-toggle-btn" onclick="toggleBarcode(this, '${i.barcode}')">👁️ نیشاندان</div>` : '-';
-            
-            let textColor = 'green';
-            if (exp.status === 'danger') textColor = 'red';
-            else if (exp.status === 'warning') textColor = 'var(--w)';
+        const mSelect = document.getElementById('inv-month-select');
+        const ySelect = document.getElementById('inv-year-select');
 
-            return `<tr><td><img src="${i.img}" width="30"></td><td>${i.name}</td><td>${barcodeContent}</td><td>${i.cost.toLocaleString()}</td><td>${i.sale.toLocaleString()}</td><td>${i.qty}</td><td style="color:${textColor}; font-weight:bold;">${exp.text || '-'}</td><td><button onclick="editItem(${i.id})">🛠️</button> <button class="del-btn" onclick="deleteFromInventory(${i.id})">❌</button></td></tr>`;
-        }).join('');
+        if (mSelect.options.length === 0) {
+            const months = ["هەموو کات (مایای ئێستا)", "1 - کانوونی دووەم", "2 - شوبات", "3 - ئازار", "4 - نیسان", "5 - ئایار", "6 - حوزەیران", "7 - تەمموز", "8 - ئاب", "9 - ئەیلوول", "10 - تشرینی یەکەم", "11 - تشرینی دووەم", "12 - کانوونی یەکەم"];
+            months.forEach((m, i) => mSelect.add(new Option(m, i === 0 ? "all" : i - 1)));
+            const years = ["هەموو", 2024, 2025, 2026, 2027];
+            years.forEach(y => ySelect.add(new Option(y, y === "هەموو" ? "all" : y)));
+            mSelect.value = "all";
+            ySelect.value = "all";
+        }
+
+        const selMonth = mSelect.value;
+        const selYear = ySelect.value;
+        let tc=0, ts=0, tp=0;
+        let tableHtml = "";
+
+        const filteredInv = inventory.filter(i => i.name.toLowerCase().includes(q) || (i.barcode && i.barcode.toLowerCase().includes(q)));
+
+        if (selMonth === "all" && selYear === "all") {
+            document.getElementById('inv-label-cost').innerText = "کۆی مایای ئێستا";
+            document.getElementById('inv-label-sale').innerText = "نرخی فرۆشتنی ئێستا";
+            document.getElementById('inv-label-profit').innerText = "قازانجی چاوەڕوانکراو";
+            filteredInv.forEach(i => {
+                tc += (i.cost * i.qty); ts += (i.sale * i.qty); tp += ((i.sale - i.cost) * i.qty);
+                const exp = checkExpiry(i.exp);
+                const barcodeContent = i.barcode ? `<div class="barcode-toggle-btn" onclick="toggleBarcode(this, '${i.barcode}')">👁️ نیشاندان</div>` : '-';
+                let textColor = 'green';
+                let rowStyle = "";
+                if (exp.status === 'danger') textColor = 'red';
+                else if (exp.status === 'warning') textColor = 'var(--w)';
+                if (i.qty <= 2 && i.qty > 0) rowStyle = "background: #fff1f2;";
+                tableHtml += `<tr style="${rowStyle}"><td><img src="${i.img}" width="30"></td><td>${i.name} ${i.qty <= 2 ? '⚠️' : ''}</td><td>${barcodeContent}</td><td>${i.cost.toLocaleString()}</td><td>${i.sale.toLocaleString()}</td><td>${i.qty}</td><td style="color:${textColor}; font-weight:bold;">${exp.text || '-'}</td><td><button onclick="editItem(${i.id})">🛠️</button> <button class="del-btn" onclick="deleteFromInventory(${i.id})">❌</button></td></tr>`;
+            });
+        } else {
+            const targetYear = selYear === "all" ? new Date().getFullYear() : parseInt(selYear);
+            const targetMonth = parseInt(selMonth);
+            const endOfSelectedMonth = new Date(targetYear, targetMonth + 1, 1).getTime();
+
+            document.getElementById('inv-label-cost').innerText = `سەرمایە لە کۆتایی مانگی ${targetMonth + 1}`;
+            document.getElementById('inv-label-sale').innerText = "بەهای فرۆشتنی ئەو کاتە";
+            document.getElementById('inv-label-profit').innerText = "قازانجی چاوەڕوانکراو";
+
+            filteredInv.forEach(item => {
+                if (item.id <= endOfSelectedMonth) {
+                    const soldAfter = sales
+                        .filter(s => s.originalId === item.id && s.date > endOfSelectedMonth)
+                        .reduce((sum, s) => sum + s.count, 0);
+                    const qtyAtThatTime = item.qty + soldAfter;
+                    if (qtyAtThatTime > 0) {
+                        tc += (item.cost * qtyAtThatTime);
+                        ts += (item.sale * qtyAtThatTime);
+                        tp += ((item.sale - item.cost) * qtyAtThatTime);
+                        tableHtml += `<tr><td><img src="${item.img}" width="30"></td><td>${item.name}</td><td>-</td><td>${item.cost.toLocaleString()}</td><td>${item.sale.toLocaleString()}</td><td>${qtyAtThatTime}</td><td>-</td><td><span style="color:var(--a)">مایای ئەو کاتە</span></td></tr>`;
+                    }
+                }
+            });
+        }
+
         document.getElementById('stk-cost').innerText = tc.toLocaleString();
         document.getElementById('stk-sale').innerText = ts.toLocaleString();
         document.getElementById('stk-profit').innerText = tp.toLocaleString();
+        document.getElementById('inventory-table').innerHTML = tableHtml;
     }
 
     function renderPOS() {
@@ -460,7 +631,7 @@
                 sales.push({ id: Date.now() + Math.random(), originalId: inv.id, name: c.name, cost: c.cost, sale: c.customPrice, profit: (c.customPrice - c.cost) * c.count, count: c.count, date: Date.now() });
             }
         });
-        save(); cart = []; renderCart(); renderPOS(); alert("فرۆشتن ئەنجام درا");
+        save(); cart = []; renderCart(); renderPOS(); checkLowStock(); alert("فرۆشتن ئەنجام درا");
     }
 
     window.addEventListener('keydown', (e) => {
@@ -526,9 +697,14 @@
         document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
         document.getElementById(id).classList.add('active');
         if(btn) btn.classList.add('active');
+        
+        checkLowStock();
+        checkAndNotifyExpiry();
+
         if(id === 'inventory') renderInventory();
         if(id === 'reports') renderReports();
         if(id === 'returns') renderReturns();
+        if(id === 'stockin') renderStockInHistory();
     }
 
     function checkExpiry(expDate) {
@@ -551,9 +727,17 @@
         const saveProcess = (imgData) => {
             if(id) {
                 const idx = inventory.findIndex(i => i.id == id);
+                const oldQty = inventory[idx].qty;
+                if (qty > oldQty) {
+                    stockInHistory.push({ id: Date.now(), name, addedQty: qty - oldQty, cost: cost, date: Date.now() });
+                }
                 inventory[idx] = { ...inventory[idx], name, barcode, cost, sale, qty, exp, img: imgData || inventory[idx].img };
             } else {
-                inventory.push({ id: Date.now(), name, barcode, cost, sale, qty, exp, img: imgData || 'https://via.placeholder.com/100', originalId: Date.now() });
+                const newId = Date.now();
+                inventory.push({ id: newId, name, barcode, cost, sale, qty, exp, img: imgData || 'https://via.placeholder.com/100', originalId: newId });
+                if (qty > 0) {
+                    stockInHistory.push({ id: Date.now(), name, addedQty: qty, cost: cost, date: Date.now() });
+                }
             }
             save(); location.reload();
         };
@@ -566,22 +750,50 @@
 
     function renderReports() {
         const q = document.getElementById('rep-search').value.toLowerCase();
-        let d=0, m=0, y=0;
+        const mSelect = document.getElementById('rep-month-select');
+        const ySelect = document.getElementById('rep-year-select');
+
+        // دروستکردنی لیستی مانگ و ساڵ ئەگەر پێشتر دروست نەکرابوون
+        if (mSelect.options.length === 0) {
+            const months = ["هەموو مانگەکان", "1 - کانوونی دووەم", "2 - شوبات", "3 - ئازار", "4 - نیسان", "5 - ئایار", "6 - حوزەیران", "7 - تەمموز", "8 - ئاب", "9 - ئەیلوول", "10 - تشرینی یەکەم", "11 - تشرینی دووەم", "12 - کانوونی یەکەم"];
+            months.forEach((m, i) => mSelect.add(new Option(m, i === 0 ? "all" : i - 1)));
+            const years = ["هەموو", 2024, 2025, 2026, 2027];
+            years.forEach(y => ySelect.add(new Option(y, y === "هەموو" ? "all" : y)));
+            mSelect.value = new Date().getMonth();
+            ySelect.value = new Date().getFullYear();
+        }
+
+        const selMonth = mSelect.value;
+        const selYear = ySelect.value;
+        let d=0, m=0, filteredTotal=0;
         
         const now = new Date();
         const businessNow = new Date(now.getTime() - (2 * 60 * 60 * 1000)); // کەمکردنەوەی ٢ کاتژمێر بۆ ئەوەی ڕۆژ لە ٢ی شەو دەست پێ بکات
 
         document.getElementById('label-day').innerText = `قازانجی ڕۆژی (${businessNow.toLocaleDateString()})`;
-        document.getElementById('label-month').innerText = `مانگی (${now.getMonth() + 1})`;
+        document.getElementById('label-month').innerText = (selMonth === "all") ? "قازانجی مانگی هەڵبژێردراو" : `مانگی (${parseInt(selMonth) + 1})`;
 
-        document.getElementById('sales-history-table').innerHTML = sales.filter(s => s.name.toLowerCase().includes(q)).sort((a,b)=>b.date-a.date).map(s => {
+        document.getElementById('sales-history-table').innerHTML = sales.filter(s => {
+            const sd = new Date(s.date);
+            const validDate = isNaN(sd.getTime()) ? new Date() : sd;
+            const matchSearch = s.name.toLowerCase().includes(q);
+            const matchMonth = (selMonth === "all" || validDate.getMonth() == selMonth);
+            const matchYear = (selYear === "all" || validDate.getFullYear() == selYear);
+            return matchSearch && matchMonth && matchYear;
+        }).sort((a,b)=>b.date-a.date).map(s => {
             const sd = new Date(s.date);
             const validDate = isNaN(sd.getTime()) ? new Date() : sd;
             const businessSaleDate = new Date(validDate.getTime() - (2 * 60 * 60 * 1000));
 
             if(businessSaleDate.toDateString() === businessNow.toDateString()) d += s.profit;
-            if(validDate.getMonth() === now.getMonth() && validDate.getFullYear() === now.getFullYear()) m += s.profit;
-            y += s.profit;
+            
+            // تەنها قازانجی ئەو مانگە هەژمار بکە کە فلتەر کراوە
+            if ((selMonth === "all" || validDate.getMonth() == selMonth) && 
+                (selYear === "all" || validDate.getFullYear() == selYear)) {
+                m += s.profit;
+            }
+
+            filteredTotal += s.profit;
 
             const dayName = daysKurdish[validDate.getDay()];
             const formattedTime = validDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
@@ -589,10 +801,109 @@
 
             return `<tr><td>${fullDateTimeString}</td><td>${s.name} (x${s.count})</td><td>${s.cost.toLocaleString()}</td><td>${s.sale.toLocaleString()}</td><td style="color:green; font-weight:bold;">${s.profit.toLocaleString()}</td><td><button class="return-btn" onclick="returnSale(${s.id})">↩️</button> <button onclick="deleteSale(${s.id})" style="color:red; background:none; border:none; cursor:pointer;">❌</button></td></tr>`;
         }).join('');
+
         document.getElementById('p-day').innerText = d.toLocaleString();
         document.getElementById('p-month').innerText = m.toLocaleString();
-        document.getElementById('p-year').innerText = y.toLocaleString();
+        document.getElementById('p-year').innerText = filteredTotal.toLocaleString();
+        
+        updateAnnualChart(selYear);
     }
+
+    let myChart = null;
+    function updateAnnualChart(year) {
+        const ctx = document.getElementById('annualChart').getContext('2d');
+        const monthlyProfits = new Array(12).fill(0);
+        
+        sales.forEach(s => {
+            const sd = new Date(s.date);
+            const validDate = isNaN(sd.getTime()) ? new Date() : sd;
+            if (year === "all" || validDate.getFullYear() == year) {
+                monthlyProfits[validDate.getMonth()] += s.profit;
+            }
+        });
+
+        if (myChart) myChart.destroy();
+        
+        myChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ["١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩", "١٠", "١١", "١٢"],
+                datasets: [{
+                    label: 'قازانجی مانگانە',
+                    data: monthlyProfits,
+                    backgroundColor: '#3b82f6',
+                    borderRadius: 5,
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    title: {
+                        display: true,
+                        text: '📈 گەشەی قازانج بەپێی مانگەکانی ساڵ',
+                        font: { family: 'Noto Sans Arabic', size: 14 }
+                    }
+                },
+                scales: {
+                    y: { 
+                        beginAtZero: true,
+                        ticks: { font: { family: 'Noto Sans Arabic' } }
+                    },
+                    x: {
+                        ticks: { font: { family: 'Noto Sans Arabic' } }
+                    }
+                }
+            }
+        });
+    }
+
+    function renderStockInHistory() {
+        const mSelect = document.getElementById('stk-month-select');
+        const ySelect = document.getElementById('stk-year-select');
+
+        if (mSelect.options.length === 0) {
+            const months = ["هەموو مانگەکان", "1 - کانوونی دووەم", "2 - شوبات", "3 - ئازار", "4 - نیسان", "5 - ئایار", "6 - حوزەیران", "7 - تەمموز", "8 - ئاب", "9 - ئەیلوول", "10 - تشرینی یەکەم", "11 - تشرینی دووەم", "12 - کانوونی یەکەم"];
+            months.forEach((m, i) => mSelect.add(new Option(m, i === 0 ? "all" : i - 1)));
+            const years = ["هەموو", 2024, 2025, 2026, 2027];
+            years.forEach(y => ySelect.add(new Option(y, y === "هەموو" ? "all" : y)));
+            mSelect.value = new Date().getMonth();
+            ySelect.value = new Date().getFullYear();
+        }
+
+        const selMonth = mSelect.value;
+        const selYear = ySelect.value;
+        let totalValue = 0;
+        let totalQty = 0;
+
+        document.getElementById('stockin-table').innerHTML = stockInHistory.filter(s => {
+            const d = new Date(s.date);
+            const matchMonth = (selMonth === "all" || d.getMonth() == selMonth);
+            const matchYear = (selYear === "all" || d.getFullYear() == selYear);
+            return matchMonth && matchYear;
+        }).sort((a,b)=>b.date-a.date).map(s => {
+            const d = new Date(s.date);
+            const itemCost = s.cost || 0;
+            const lineTotal = itemCost * s.addedQty;
+            totalValue += lineTotal;
+            totalQty += s.addedQty;
+            return `<tr>
+                <td>${d.toLocaleDateString()} (${d.toLocaleTimeString()})</td>
+                <td>${s.name}</td>
+                <td style="color:var(--s); font-weight:bold;">+ ${s.addedQty}</td>
+                <td>${itemCost.toLocaleString()}</td>
+                <td>${lineTotal.toLocaleString()}</td>
+                <td><button class="del-btn" onclick="deleteStockIn(${s.id})">❌</button></td>
+            </tr>`;
+        }).join('');
+        
+        document.getElementById('stk-in-value').innerText = totalValue.toLocaleString();
+        document.getElementById('stk-in-qty').innerText = totalQty.toLocaleString();
+    }
+
+    function deleteStockIn(id) { if(confirm("ئەم مێژووە بسڕێتەوە؟")) { stockInHistory = stockInHistory.filter(s => s.id !== id); save(); renderStockInHistory(); } }
 
     function returnSale(saleId) {
         const idx = sales.findIndex(s => s.id == saleId);
@@ -652,11 +963,12 @@
                 save(); 
                 renderReports(); 
                 renderInventory(); 
+                checkLowStock();
             }
         } 
     }
 
-    function deleteFromInventory(id) { if(confirm("بسڕێتەوە؟")) { inventory = inventory.filter(i => i.id !== id); save(); renderInventory(); } }
+    function deleteFromInventory(id) { if(confirm("بسڕێتەوە؟")) { inventory = inventory.filter(i => i.id !== id); save(); renderInventory(); checkLowStock(); } }
     
     function editItem(id) {
         const item = inventory.find(i => i.id == id);
@@ -674,10 +986,11 @@
         localStorage.setItem('shop_v5_inv', JSON.stringify(inventory));
         localStorage.setItem('shop_v5_sales', JSON.stringify(sales));
         localStorage.setItem('shop_v5_returns', JSON.stringify(returns));
+        localStorage.setItem('shop_v5_stockin', JSON.stringify(stockInHistory));
     }
 
     function backupData() {
-        const blob = new Blob([JSON.stringify({ inventory, sales, returns })], { type: 'application/json' });
+        const blob = new Blob([JSON.stringify({ inventory, sales, returns, stockInHistory })], { type: 'application/json' });
         const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
         a.download = `Backup_${new Date().toLocaleDateString()}.json`; a.click();
     }
@@ -686,7 +999,7 @@
         const reader = new FileReader();
         reader.onload = (ev) => {
             const data = JSON.parse(ev.target.result);
-            inventory = data.inventory || []; sales = data.sales || []; returns = data.returns || [];
+            inventory = data.inventory || []; sales = data.sales || []; returns = data.returns || []; stockInHistory = data.stockInHistory || [];
             save(); location.reload();
         };
         reader.readAsText(e.target.files[0]);
