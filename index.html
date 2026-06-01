@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <title>Azhy Cosmetic - Ultra Fast System</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;700&display=swap');
         :root { --p: #0f172a; --a: #3b82f6; --s: #10b981; --bg: #f1f5f9; --d: #ef4444; --w: #f59e0b; }
@@ -164,7 +163,6 @@
         <div class="nav-btn" onclick="showSec('inventory', this)">📦 کۆگا</div>
         <div class="nav-btn" onclick="showSec('reports', this)">📊 ڕاپۆرت</div>
         <div class="nav-btn" onclick="showSec('returns', this)">↩️ گەڕاوەکان</div>
-        <div class="nav-btn" onclick="showSec('stockin', this)">📥 داخلکراوەکان</div>
         <div class="nav-btn" onclick="showSec('add', this)">➕ کاڵای نوێ</div>
     </div>
 
@@ -224,9 +222,6 @@
                     <div class="stat-item"><h4 id="label-month">ئەو مانگە</h4><p id="p-month">0</p></div>
                     <div class="stat-item"><h4>قازانجی گشتی</h4><p id="p-year">0</p></div>
                 </div>
-                <div class="card" style="height: 300px; position: relative; margin-top: 10px;">
-                    <canvas id="annualChart"></canvas>
-                </div>
                 <div style="max-height: 400px; overflow-y: auto;">
                     <table>
                         <thead><tr><th>بەروار و کات</th><th>ناو</th><th>مایا</th><th>فرۆشتن</th><th>قازانج</th><th>کردار</th></tr></thead>
@@ -247,24 +242,6 @@
                 <table>
                     <thead><tr><th>بەروار</th><th>ناو</th><th>بڕ</th><th>نرخ</th><th>بارودۆخ</th><th>کردار</th></tr></thead>
                     <tbody id="returns-table"></tbody>
-                </table>
-            </div>
-        </div>
-
-        <div id="stockin" class="section">
-            <div class="card">
-                <h3>📥 مێژووی زیادکردنی کاڵا (Stock In)</h3>
-                <div style="display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
-                    <select id="stk-month-select" onchange="renderStockInHistory()" style="width: 150px; padding: 10px; border-radius: 8px; border: 1px solid #ddd;"></select>
-                    <select id="stk-year-select" onchange="renderStockInHistory()" style="width: 100px; padding: 10px; border-radius: 8px; border: 1px solid #ddd;"></select>
-                </div>
-                <div class="stats-grid">
-                    <div class="stat-item"><h4>کۆی نرخی کڕین (مایا)</h4><p id="stk-in-value">0</p></div>
-                    <div class="stat-item"><h4>کۆی بڕی داخلکراو</h4><p id="stk-in-qty">0</p></div>
-                </div>
-                <table>
-                    <thead><tr><th>بەروار و کات</th><th>ناوی کاڵا</th><th>بڕی زیادکراو</th><th>تێچوو (تاک)</th><th>کۆی تێچوو</th><th>کردار</th></tr></thead>
-                    <tbody id="stockin-table"></tbody>
                 </table>
             </div>
         </div>
@@ -290,7 +267,6 @@
     let inventory = JSON.parse(localStorage.getItem('shop_v5_inv')) || [];
     let sales = JSON.parse(localStorage.getItem('shop_v5_sales')) || [];
     let returns = JSON.parse(localStorage.getItem('shop_v5_returns')) || [];
-    let stockInHistory = JSON.parse(localStorage.getItem('shop_v5_stockin')) || [];
     let cart = [];
     let html5QrCode = null;
     let scanLocked = false;
@@ -704,7 +680,6 @@
         if(id === 'inventory') renderInventory();
         if(id === 'reports') renderReports();
         if(id === 'returns') renderReturns();
-        if(id === 'stockin') renderStockInHistory();
     }
 
     function checkExpiry(expDate) {
@@ -727,17 +702,10 @@
         const saveProcess = (imgData) => {
             if(id) {
                 const idx = inventory.findIndex(i => i.id == id);
-                const oldQty = inventory[idx].qty;
-                if (qty > oldQty) {
-                    stockInHistory.push({ id: Date.now(), name, addedQty: qty - oldQty, cost: cost, date: Date.now() });
-                }
                 inventory[idx] = { ...inventory[idx], name, barcode, cost, sale, qty, exp, img: imgData || inventory[idx].img };
             } else {
                 const newId = Date.now();
                 inventory.push({ id: newId, name, barcode, cost, sale, qty, exp, img: imgData || 'https://via.placeholder.com/100', originalId: newId });
-                if (qty > 0) {
-                    stockInHistory.push({ id: Date.now(), name, addedQty: qty, cost: cost, date: Date.now() });
-                }
             }
             save(); location.reload();
         };
@@ -787,7 +755,6 @@
 
             if(businessSaleDate.toDateString() === businessNow.toDateString()) d += s.profit;
             
-            // تەنها قازانجی ئەو مانگە هەژمار بکە کە فلتەر کراوە
             if ((selMonth === "all" || validDate.getMonth() == selMonth) && 
                 (selYear === "all" || validDate.getFullYear() == selYear)) {
                 m += s.profit;
@@ -805,105 +772,8 @@
         document.getElementById('p-day').innerText = d.toLocaleString();
         document.getElementById('p-month').innerText = m.toLocaleString();
         document.getElementById('p-year').innerText = filteredTotal.toLocaleString();
-        
-        updateAnnualChart(selYear);
     }
 
-    let myChart = null;
-    function updateAnnualChart(year) {
-        const ctx = document.getElementById('annualChart').getContext('2d');
-        const monthlyProfits = new Array(12).fill(0);
-        
-        sales.forEach(s => {
-            const sd = new Date(s.date);
-            const validDate = isNaN(sd.getTime()) ? new Date() : sd;
-            if (year === "all" || validDate.getFullYear() == year) {
-                monthlyProfits[validDate.getMonth()] += s.profit;
-            }
-        });
-
-        if (myChart) myChart.destroy();
-        
-        myChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: ["١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩", "١٠", "١١", "١٢"],
-                datasets: [{
-                    label: 'قازانجی مانگانە',
-                    data: monthlyProfits,
-                    backgroundColor: '#3b82f6',
-                    borderRadius: 5,
-                    borderWidth: 0
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    title: {
-                        display: true,
-                        text: '📈 گەشەی قازانج بەپێی مانگەکانی ساڵ',
-                        font: { family: 'Noto Sans Arabic', size: 14 }
-                    }
-                },
-                scales: {
-                    y: { 
-                        beginAtZero: true,
-                        ticks: { font: { family: 'Noto Sans Arabic' } }
-                    },
-                    x: {
-                        ticks: { font: { family: 'Noto Sans Arabic' } }
-                    }
-                }
-            }
-        });
-    }
-
-    function renderStockInHistory() {
-        const mSelect = document.getElementById('stk-month-select');
-        const ySelect = document.getElementById('stk-year-select');
-
-        if (mSelect.options.length === 0) {
-            const months = ["هەموو مانگەکان", "1 - کانوونی دووەم", "2 - شوبات", "3 - ئازار", "4 - نیسان", "5 - ئایار", "6 - حوزەیران", "7 - تەمموز", "8 - ئاب", "9 - ئەیلوول", "10 - تشرینی یەکەم", "11 - تشرینی دووەم", "12 - کانوونی یەکەم"];
-            months.forEach((m, i) => mSelect.add(new Option(m, i === 0 ? "all" : i - 1)));
-            const years = ["هەموو", 2024, 2025, 2026, 2027];
-            years.forEach(y => ySelect.add(new Option(y, y === "هەموو" ? "all" : y)));
-            mSelect.value = new Date().getMonth();
-            ySelect.value = new Date().getFullYear();
-        }
-
-        const selMonth = mSelect.value;
-        const selYear = ySelect.value;
-        let totalValue = 0;
-        let totalQty = 0;
-
-        document.getElementById('stockin-table').innerHTML = stockInHistory.filter(s => {
-            const d = new Date(s.date);
-            const matchMonth = (selMonth === "all" || d.getMonth() == selMonth);
-            const matchYear = (selYear === "all" || d.getFullYear() == selYear);
-            return matchMonth && matchYear;
-        }).sort((a,b)=>b.date-a.date).map(s => {
-            const d = new Date(s.date);
-            const itemCost = s.cost || 0;
-            const lineTotal = itemCost * s.addedQty;
-            totalValue += lineTotal;
-            totalQty += s.addedQty;
-            return `<tr>
-                <td>${d.toLocaleDateString()} (${d.toLocaleTimeString()})</td>
-                <td>${s.name}</td>
-                <td style="color:var(--s); font-weight:bold;">+ ${s.addedQty}</td>
-                <td>${itemCost.toLocaleString()}</td>
-                <td>${lineTotal.toLocaleString()}</td>
-                <td><button class="del-btn" onclick="deleteStockIn(${s.id})">❌</button></td>
-            </tr>`;
-        }).join('');
-        
-        document.getElementById('stk-in-value').innerText = totalValue.toLocaleString();
-        document.getElementById('stk-in-qty').innerText = totalQty.toLocaleString();
-    }
-
-    function deleteStockIn(id) { if(confirm("ئەم مێژووە بسڕێتەوە؟")) { stockInHistory = stockInHistory.filter(s => s.id !== id); save(); renderStockInHistory(); } }
 
     function returnSale(saleId) {
         const idx = sales.findIndex(s => s.id == saleId);
@@ -986,11 +856,10 @@
         localStorage.setItem('shop_v5_inv', JSON.stringify(inventory));
         localStorage.setItem('shop_v5_sales', JSON.stringify(sales));
         localStorage.setItem('shop_v5_returns', JSON.stringify(returns));
-        localStorage.setItem('shop_v5_stockin', JSON.stringify(stockInHistory));
     }
 
     function backupData() {
-        const blob = new Blob([JSON.stringify({ inventory, sales, returns, stockInHistory })], { type: 'application/json' });
+        const blob = new Blob([JSON.stringify({ inventory, sales, returns })], { type: 'application/json' });
         const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
         a.download = `Backup_${new Date().toLocaleDateString()}.json`; a.click();
     }
@@ -999,7 +868,7 @@
         const reader = new FileReader();
         reader.onload = (ev) => {
             const data = JSON.parse(ev.target.result);
-            inventory = data.inventory || []; sales = data.sales || []; returns = data.returns || []; stockInHistory = data.stockInHistory || [];
+            inventory = data.inventory || []; sales = data.sales || []; returns = data.returns || [];
             save(); location.reload();
         };
         reader.readAsText(e.target.files[0]);
