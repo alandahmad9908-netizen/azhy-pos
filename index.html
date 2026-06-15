@@ -159,11 +159,29 @@
 
         <div id="inventory" class="section">
             <div class="card">
-                <div style="display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
+                <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; align-items: center;">
+                    <h3 style="margin: 0; flex-shrink: 0;">📦 بەڕێوەبردنی کۆگا</h3>
                     <input type="text" id="inv-search" style="flex: 1; min-width: 200px;" placeholder="🔍 گەڕان لە کۆگا..." onkeyup="renderInventory()">
                     <select id="inv-month-select" onchange="renderInventory()" style="width: 150px; padding: 10px; border-radius: 8px; border: 1px solid #ddd;"></select>
                     <select id="inv-year-select" onchange="renderInventory()" style="width: 100px; padding: 10px; border-radius: 8px; border: 1px solid #ddd;"></select>
+                    <div style="display: flex; gap: 5px;">
+                        <button class="btn" style="background: var(--w); width: auto; padding: 8px 12px;" onclick="toggleExpPanel()" title="بەسەرچوون">📅</button>
+                        <button class="btn" style="background: var(--d); width: auto; padding: 8px 12px;" onclick="toggleLowStockPanel()" title="کەمی بڕ">📉</button>
+                    </div>
                 </div>
+
+                <!-- پەنجەرەی بەسەرچوون لەناو کۆگا -->
+                <div id="exp-panel" class="exp-floating-panel" style="width: 100%; margin-bottom: 15px; display: none;">
+                    <div class="exp-panel-header">📅 کاڵا بەسەرچووەکان (نزیکەی ٢ مانگ یان کەمتر) <span onclick="toggleExpPanel()" style="cursor:pointer;">✕</span></div>
+                    <div id="exp-list" class="exp-panel-list"></div>
+                </div>
+
+                <!-- پەنجەرەی کەمی بڕ لەناو کۆگا -->
+                <div id="low-stock-panel" class="exp-floating-panel" style="width: 100%; margin-bottom: 15px; display: none;">
+                    <div class="exp-panel-header">📉 کاڵا بڕ کەمەکان (٢ دانە یان کەمتر) <span onclick="toggleLowStockPanel()" style="cursor:pointer;">✕</span></div>
+                    <div id="low-stock-list" class="exp-panel-list"></div>
+                </div>
+
                 <div class="stats-grid">
                     <div class="stat-item"><h4 id="inv-label-cost">مایای گشتی</h4><p id="stk-cost">0</p></div>
                     <div class="stat-item"><h4 id="inv-label-sale">فرۆشتنی گشتی</h4><p id="stk-sale">0</p></div>
@@ -253,8 +271,6 @@
     window.onload = () => { 
         renderPOS(); 
         checkMonthEndTriggers();
-        checkLowStock();
-        checkAndNotifyExpiry(); 
         setInterval(checkMonthEndTriggers, 10000); // پشکنین هەر ١٠ چرکەیەک بۆ وردی کات
     };
 
@@ -273,11 +289,77 @@
 
     function toggleExpPanel() {
         const panel = document.getElementById('exp-panel');
-        panel.style.display = (panel.style.display === 'block') ? 'none' : 'block';
+        if (panel.style.display === 'block') {
+            panel.style.display = 'none';
+        } else {
+            renderExpList();
+            panel.style.display = 'block';
+        }
     }
 
-    function hideExpAlertPermanently() {
-        document.getElementById('exp-alert-ui').style.display = 'none';
+    function renderExpList() {
+        const list = document.getElementById('exp-list');
+        const items = inventory.filter(item => {
+            if (!item.exp || item.qty <= 0) return false;
+            const diff = Math.ceil((new Date(item.exp) - new Date()) / (1000 * 60 * 60 * 24));
+            return diff <= 60;
+        });
+        if (items.length === 0) {
+            list.innerHTML = '<div style="padding:15px; text-align:center;">هیچ کاڵایەک نزیک نییە لە بەسەرچوون</div>';
+            return;
+        const now = Date.now();
+        const dayMs = 86400000;
+        let html = "";
+        let count = 0;
+
+        for (let i = 0; i < inventory.length; i++) {
+            const item = inventory[i];
+            if (!item.exp || item.qty <= 0) continue;
+            
+            const expTime = new Date(item.exp).getTime();
+            const diff = Math.ceil((expTime - now) / dayMs);
+            
+            if (diff <= 60) {
+                count++;
+            const color = diff <= 0 ? 'red' : 'var(--w)';
+                html += `<div class="exp-item-row"><span>${item.name}</span><span style="color:${color}; font-weight:bold;">${diff <= 0 ? 'بەسەرچووە' : diff + ' ڕۆژ ماوە'}</span></div>`;
+            }
+        }
+        list.innerHTML = items.map(item => {
+            const diff = Math.ceil((new Date(item.exp) - new Date()) / (1000 * 60 * 60 * 24));
+            const color = diff <= 0 ? 'red' : 'var(--w)';
+            return `<div class="exp-item-row"><span>${item.name}</span><span style="color:${color}; font-weight:bold;">${diff <= 0 ? 'بەسەرچووە' : diff + ' ڕۆژ ماوە'}</span></div>`;
+        }).join('');
+        list.innerHTML = count === 0 ? '<div style="padding:15px; text-align:center;">هیچ کاڵایەک نزیک نییە لە بەسەرچوون</div>' : html;
+    }
+
+    function toggleLowStockPanel() {
+        const panel = document.getElementById('low-stock-panel');
+        if (panel.style.display === 'block') {
+            panel.style.display = 'none';
+        } else {
+            renderLowStockList();
+            panel.style.display = 'block';
+        }
+    }
+
+    function renderLowStockList() {
+        const list = document.getElementById('low-stock-list');
+        const items = inventory.filter(i => i.qty <= 2 && i.qty > 0);
+        if (items.length === 0) {
+            list.innerHTML = '<div style="padding:15px; text-align:center;">هیچ کاڵایەک بڕی کەم نییە</div>';
+            return;
+        let html = "";
+        let count = 0;
+        for (let i = 0; i < inventory.length; i++) {
+            const item = inventory[i];
+            if (item.qty <= 2 && item.qty > 0) {
+                count++;
+                html += `<div class="exp-item-row"><span>${item.name}</span><span style="color:red; font-weight:bold;">ماوە: ${item.qty}</span></div>`;
+            }
+        }
+        list.innerHTML = items.map(item => `<div class="exp-item-row"><span>${item.name}</span><span style="color:red; font-weight:bold;">ماوە: ${item.qty}</span></div>`).join('');
+        list.innerHTML = count === 0 ? '<div style="padding:15px; text-align:center;">هیچ کاڵایەک بڕی کەم نییە</div>' : html;
     }
 
     function showMonthEndModal(title, body, type = 'warning', showBackupBtn = true) {
@@ -381,15 +463,6 @@
                 notifiedItems.delete(item.id + "_low");
             }
         });
-    }
-
-    function toggleLowStockPanel() {
-        const panel = document.getElementById('low-stock-panel');
-        panel.style.display = (panel.style.display === 'block') ? 'none' : 'block';
-    }
-
-    function hideLowStockAlertPermanently() {
-        document.getElementById('low-stock-alert-ui').style.display = 'none';
     }
 
     function findItemByBarcode(inputCode) {
@@ -624,9 +697,6 @@
         document.getElementById(id).classList.add('active');
         if(btn) btn.classList.add('active');
         
-        checkLowStock();
-        checkAndNotifyExpiry();
-
         if(id === 'inventory') renderInventory();
         if(id === 'reports') renderReports();
         if(id === 'returns') renderReturns();
