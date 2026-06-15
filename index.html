@@ -106,42 +106,11 @@
         .toast.danger { border-right-color: var(--d); }
         .toast.success { border-right-color: var(--s); }
         @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        /* شاردنەوەی کانتێنەرە کۆنەکان */
+        .exp-alert-container { display: none !important; }
     </style>
 </head>
 <body>
-
-    <!-- ئاگادارکردنەوەی سەرەوەی بەسەرچوون -->
-    <div id="exp-alert-ui" class="exp-alert-container">
-        <div id="exp-panel" class="exp-floating-panel">
-            <div class="exp-panel-header">
-                <span>⚠️ کاڵا نزیک بەسەرچووەکان</span>
-                <span onclick="toggleExpPanel()" style="cursor:pointer; font-size:20px;">✕</span>
-            </div>
-            <div id="exp-panel-list" class="exp-panel-list"></div>
-        </div>
-        <div class="exp-fab" onclick="toggleExpPanel()">
-            <span style="font-size: 24px;">⚠️</span>
-            <div id="exp-count" class="exp-badge-count">0</div>
-            <div onclick="event.stopPropagation(); hideExpAlertPermanently()" style="position:absolute; bottom:-10px; left:-10px; background:#eee; color:#666; border-radius:50%; width:18px; height:18px; font-size:10px; display:flex; align-items:center; justify-content:center; border:1px solid #ccc;">✕</div>
-        </div>
-    </div>
-
-    <!-- ئاگادارکردنەوەی کەمیی کاڵا -->
-    <div id="low-stock-alert-ui" class="exp-alert-container" style="bottom: 90px;">
-        <div id="low-stock-panel" class="exp-floating-panel">
-            <div class="exp-panel-header">
-                <span>⚠️ کاڵا کەمبووەکان (٢ یان کەمتر)</span>
-                <span onclick="toggleLowStockPanel()" style="cursor:pointer; font-size:20px;">✕</span>
-            </div>
-            <div id="low-stock-panel-list" class="exp-panel-list"></div>
-        </div>
-        <div class="exp-fab" style="background: var(--d);" onclick="toggleLowStockPanel()">
-            <span style="font-size: 24px;">📦</span>
-            <div id="low-stock-count" class="exp-badge-count">0</div>
-            <div onclick="event.stopPropagation(); hideLowStockAlertPermanently()" style="position:absolute; bottom:-10px; left:-10px; background:#eee; color:#666; border-radius:50%; width:18px; height:18px; font-size:10px; display:flex; align-items:center; justify-content:center; border:1px solid #ccc;">✕</div>
-        </div>
-    </div>
-
     <div id="monthEndModal" class="exp-modal">
         <div class="exp-modal-content">
             <div class="exp-modal-header">
@@ -271,8 +240,11 @@
     let html5QrCode = null;
     let scanLocked = false;
     let audioCtx = null;
+    let notifiedItems = new Set();
     let barcodeBuffer = "";
     
+    const secretKey = "121212"; // وشەی نهێنی (Password) لێرە بگۆڕە
+    // let isAdmin = false; // ئەم گۆڕاوە لابراوە بۆ ئەوەی هەر جارێک داوای وشەی نهێنی بکات
     // ئەمانە بەکاردێن بۆ ئەوەی لە کاتی ڕیفرێشکردن ئاگادارییەکان دووبارە ببنەوە
     let sessionAlerts = { day: false, hour: false, fiveMin: false };
 
@@ -286,42 +258,17 @@
         setInterval(checkMonthEndTriggers, 10000); // پشکنین هەر ١٠ چرکەیەک بۆ وردی کات
     };
 
-    // لێرەدا ژمارەی ٣٠ کراوە بە ٦٠ بۆ ئەوەی دوو مانگ پێشتر ئاگادارت بکاتەوە
     function checkAndNotifyExpiry() {
-        let itemsNearExp = inventory.filter(i => {
-            if (!i.exp || i.qty <= 0) return false;
-            const diff = Math.ceil((new Date(i.exp) - new Date()) / (1000 * 60 * 60 * 24));
-            return diff <= 60;
+        inventory.forEach(item => {
+            if (!item.exp || item.qty <= 0) return;
+            const diff = Math.ceil((new Date(item.exp) - new Date()) / (1000 * 60 * 60 * 24));
+            
+            if (diff <= 60 && !notifiedItems.has(item.id + "_exp")) {
+                const toastMsg = diff <= 0 ? `کاڵای (${item.name}) بەسەرچووە!` : `کاڵای (${item.name}) نزیکە لە بەسەرچوون: ${diff} ڕۆژ ماوە`;
+                showToast(toastMsg, diff <= 0 ? 'danger' : 'warning');
+                notifiedItems.add(item.id + "_exp");
+            }
         });
-
-        const expUI = document.getElementById('exp-alert-ui');
-        const isInventorySection = document.getElementById('inventory').classList.contains('active');
-        const fab = expUI.querySelector('.exp-fab');
-
-        if (itemsNearExp.length > 0) {
-            document.getElementById('exp-alert-ui').style.display = 'block';
-            document.getElementById('exp-count').innerText = itemsNearExp.length;
-            
-            let hasExpired = false;
-            const listHtml = itemsNearExp.map(item => {
-                const diff = Math.ceil((new Date(item.exp) - new Date()) / (1000 * 60 * 60 * 24));
-                let msg = '';
-                if (diff <= 0) {
-                    msg = `<span style="color:red; font-weight:bold;">بەسەرچووە</span>`;
-                    hasExpired = true;
-                } else msg = `<span style="color:var(--w); font-weight:bold;">${diff} ڕۆژ</span>`;
-                
-                return `<div class="exp-item-row"><span>${item.name}</span>${msg}</div>`;
-            }).join('');
-
-            if (hasExpired) fab.style.background = 'var(--d)';
-            else fab.style.background = 'var(--w)';
-            
-            document.getElementById('exp-panel-list').innerHTML = listHtml;
-            expUI.style.display = isInventorySection ? 'block' : 'none';
-        } else {
-            expUI.style.display = 'none';
-        }
     }
 
     function toggleExpPanel() {
@@ -425,22 +372,15 @@
     }
 
     function checkLowStock() {
-        const lowStockItems = inventory.filter(i => i.qty <= 2 && i.qty > 0);
-        const lowStockUI = document.getElementById('low-stock-alert-ui');
-        const isInventorySection = document.getElementById('inventory').classList.contains('active');
-
-        if (lowStockItems.length > 0) {
-            document.getElementById('low-stock-count').innerText = lowStockItems.length;
-            
-            const listHtml = lowStockItems.map(item => {
-                return `<div class="exp-item-row"><span>${item.name}</span><span style="color:var(--d); font-weight:bold;">ماوە: ${item.qty}</span></div>`;
-            }).join('');
-            
-            document.getElementById('low-stock-panel-list').innerHTML = listHtml;
-            lowStockUI.style.display = isInventorySection ? 'block' : 'none';
-        } else {
-            lowStockUI.style.display = 'none';
-        }
+        inventory.forEach(item => {
+            if (item.qty <= 2 && item.qty > 0 && !notifiedItems.has(item.id + "_low")) {
+                showToast(`کاڵای (${item.name}) بڕەکەی کەمە: تەنها ${item.qty} دانە ماوە`, 'danger');
+                notifiedItems.add(item.id + "_low");
+            } else if (item.qty > 2) {
+                // ئەگەر بڕەکەی زیاد کرایەوە، لە لیستی ئاگادارییەکان دەریبهێنە بۆ جارێکی تر
+                notifiedItems.delete(item.id + "_low");
+            }
+        });
     }
 
     function toggleLowStockPanel() {
@@ -494,9 +434,9 @@
         const filteredInv = inventory.filter(i => i.name.toLowerCase().includes(q) || (i.barcode && i.barcode.toLowerCase().includes(q)));
 
         if (selMonth === "all" && selYear === "all") {
-            document.getElementById('inv-label-cost').innerText = "کۆی مایای ئێستا";
-            document.getElementById('inv-label-sale').innerText = "نرخی فرۆشتنی ئێستا";
-            document.getElementById('inv-label-profit').innerText = "قازانجی چاوەڕوانکراو";
+            document.getElementById('inv-label-cost').innerText = "کۆی سەرمایەی ئێستا";
+            document.getElementById('inv-label-sale').innerText = "بەهای فرۆشتنی ئێستا";
+            document.getElementById('inv-label-profit').innerText = "قازانجی چاوەڕوانکراو لە ماوەکان";
             filteredInv.forEach(i => {
                 tc += (i.cost * i.qty); ts += (i.sale * i.qty); tp += ((i.sale - i.cost) * i.qty);
                 const exp = checkExpiry(i.exp);
@@ -514,8 +454,8 @@
             const endOfSelectedMonth = new Date(targetYear, targetMonth + 1, 1).getTime();
 
             document.getElementById('inv-label-cost').innerText = `سەرمایە لە کۆتایی مانگی ${targetMonth + 1}`;
-            document.getElementById('inv-label-sale').innerText = "بەهای فرۆشتنی ئەو کاتە";
-            document.getElementById('inv-label-profit').innerText = "قازانجی چاوەڕوانکراو";
+            document.getElementById('inv-label-sale').innerText = `بەهای فرۆشتنی مانگی ${targetMonth + 1}`;
+            document.getElementById('inv-label-profit').innerText = "قازانجی خەمڵێنراوی ئەو کاتە";
 
             filteredInv.forEach(item => {
                 if (item.id <= endOfSelectedMonth) {
@@ -604,7 +544,7 @@
             const inv = inventory.find(i => i.id === c.id);
             if(inv) {
                 inv.qty -= c.count;
-                sales.push({ id: Date.now() + Math.random(), originalId: inv.id, name: c.name, cost: c.cost, sale: c.customPrice, profit: (c.customPrice - c.cost) * c.count, count: c.count, date: Date.now() });
+                sales.push({ id: Date.now() + Math.random(), originalId: inv.id, name: c.name, cost: c.cost, sale: c.customPrice, profit: Math.round((c.customPrice - inv.cost) * c.count), count: c.count, date: Date.now() });
             }
         });
         save(); cart = []; renderCart(); renderPOS(); checkLowStock(); alert("فرۆشتن ئەنجام درا");
@@ -617,6 +557,7 @@
             if (finalCode.length >= 2) {
                 const item = findItemByBarcode(finalCode);
                 if (item) { addToCart(item.id); playBeep(); }
+                if (item) { addToCart(item.id); }
                 barcodeBuffer = ""; e.preventDefault();
             } else if (cart.length > 0) { completeSale(); }
         } else if (e.key.length === 1) {
@@ -669,6 +610,15 @@
     }
 
     function showSec(id, btn) {
+        if (id === 'inventory' || id === 'reports') { // ئێستا هەر جارێک داوای وشەی نهێنی دەکات
+            const input = prompt("بۆ چوونە ناو ئەم بەشە وشەی نهێنی (Password) بنووسە:");
+            if (input === null) return; // ئەگەر بەکارهێنەر پەشیمان بووەوە و کاینسڵی کرد
+            if (input === secretKey) {
+            } else {
+                alert("ببورە، وشەی نهێنی هەڵەیە!");
+                return;
+            }
+        }
         document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
         document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
         document.getElementById(id).classList.add('active');
@@ -725,7 +675,7 @@
         if (mSelect.options.length === 0) {
             const months = ["هەموو مانگەکان", "1 - کانوونی دووەم", "2 - شوبات", "3 - ئازار", "4 - نیسان", "5 - ئایار", "6 - حوزەیران", "7 - تەمموز", "8 - ئاب", "9 - ئەیلوول", "10 - تشرینی یەکەم", "11 - تشرینی دووەم", "12 - کانوونی یەکەم"];
             months.forEach((m, i) => mSelect.add(new Option(m, i === 0 ? "all" : i - 1)));
-            const years = ["هەموو", 2024, 2025, 2026, 2027];
+            const years = ["هەموو ساڵەکان", 2024, 2025, 2026, 2027];
             years.forEach(y => ySelect.add(new Option(y, y === "هەموو" ? "all" : y)));
             mSelect.value = new Date().getMonth();
             ySelect.value = new Date().getFullYear();
@@ -805,7 +755,7 @@
                 sales.splice(idx, 1);
             } else {
                 s.count -= returnCount;
-                s.profit = (s.sale - s.cost) * s.count;
+                s.profit = Math.round((s.sale - s.cost) * s.count);
             }
 
             save(); 
