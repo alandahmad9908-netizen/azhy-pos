@@ -172,7 +172,7 @@
 
                 <!-- پەنجەرەی بەسەرچوون لەناو کۆگا -->
                 <div id="exp-panel" class="exp-floating-panel" style="width: 100%; margin-bottom: 15px; display: none;">
-                    <div class="exp-panel-header">📅 کاڵا بەسەرچووەکان (نزیکەی ٢ مانگ یان کەمتر) <span onclick="toggleExpPanel()" style="cursor:pointer;">✕</span></div>
+                    <div class="exp-panel-header">📅 کاڵا بەسەرچووەکان (٢ مانگ یان کەمتر) <span onclick="toggleExpPanel()" style="cursor:pointer;">✕</span></div>
                     <div id="exp-list" class="exp-panel-list"></div>
                 </div>
 
@@ -274,19 +274,6 @@
         setInterval(checkMonthEndTriggers, 10000); // پشکنین هەر ١٠ چرکەیەک بۆ وردی کات
     };
 
-    function checkAndNotifyExpiry() {
-        inventory.forEach(item => {
-            if (!item.exp || item.qty <= 0) return;
-            const diff = Math.ceil((new Date(item.exp) - new Date()) / (1000 * 60 * 60 * 24));
-            
-            if (diff <= 60 && !notifiedItems.has(item.id + "_exp")) {
-                const toastMsg = diff <= 0 ? `کاڵای (${item.name}) بەسەرچووە!` : `کاڵای (${item.name}) نزیکە لە بەسەرچوون: ${diff} ڕۆژ ماوە`;
-                showToast(toastMsg, diff <= 0 ? 'danger' : 'warning');
-                notifiedItems.add(item.id + "_exp");
-            }
-        });
-    }
-
     function toggleExpPanel() {
         const panel = document.getElementById('exp-panel');
         if (panel.style.display === 'block') {
@@ -299,14 +286,6 @@
 
     function renderExpList() {
         const list = document.getElementById('exp-list');
-        const items = inventory.filter(item => {
-            if (!item.exp || item.qty <= 0) return false;
-            const diff = Math.ceil((new Date(item.exp) - new Date()) / (1000 * 60 * 60 * 24));
-            return diff <= 60;
-        });
-        if (items.length === 0) {
-            list.innerHTML = '<div style="padding:15px; text-align:center;">هیچ کاڵایەک نزیک نییە لە بەسەرچوون</div>';
-            return;
         const now = Date.now();
         const dayMs = 86400000;
         let html = "";
@@ -315,21 +294,14 @@
         for (let i = 0; i < inventory.length; i++) {
             const item = inventory[i];
             if (!item.exp || item.qty <= 0) continue;
-            
             const expTime = new Date(item.exp).getTime();
             const diff = Math.ceil((expTime - now) / dayMs);
-            
             if (diff <= 60) {
                 count++;
-            const color = diff <= 0 ? 'red' : 'var(--w)';
+                const color = diff <= 0 ? 'red' : 'var(--w)';
                 html += `<div class="exp-item-row"><span>${item.name}</span><span style="color:${color}; font-weight:bold;">${diff <= 0 ? 'بەسەرچووە' : diff + ' ڕۆژ ماوە'}</span></div>`;
             }
         }
-        list.innerHTML = items.map(item => {
-            const diff = Math.ceil((new Date(item.exp) - new Date()) / (1000 * 60 * 60 * 24));
-            const color = diff <= 0 ? 'red' : 'var(--w)';
-            return `<div class="exp-item-row"><span>${item.name}</span><span style="color:${color}; font-weight:bold;">${diff <= 0 ? 'بەسەرچووە' : diff + ' ڕۆژ ماوە'}</span></div>`;
-        }).join('');
         list.innerHTML = count === 0 ? '<div style="padding:15px; text-align:center;">هیچ کاڵایەک نزیک نییە لە بەسەرچوون</div>' : html;
     }
 
@@ -345,10 +317,6 @@
 
     function renderLowStockList() {
         const list = document.getElementById('low-stock-list');
-        const items = inventory.filter(i => i.qty <= 2 && i.qty > 0);
-        if (items.length === 0) {
-            list.innerHTML = '<div style="padding:15px; text-align:center;">هیچ کاڵایەک بڕی کەم نییە</div>';
-            return;
         let html = "";
         let count = 0;
         for (let i = 0; i < inventory.length; i++) {
@@ -358,8 +326,11 @@
                 html += `<div class="exp-item-row"><span>${item.name}</span><span style="color:red; font-weight:bold;">ماوە: ${item.qty}</span></div>`;
             }
         }
-        list.innerHTML = items.map(item => `<div class="exp-item-row"><span>${item.name}</span><span style="color:red; font-weight:bold;">ماوە: ${item.qty}</span></div>`).join('');
         list.innerHTML = count === 0 ? '<div style="padding:15px; text-align:center;">هیچ کاڵایەک بڕی کەم نییە</div>' : html;
+    }
+
+    function hideExpAlertPermanently() {
+        document.getElementById('exp-alert-ui').style.display = 'none';
     }
 
     function showMonthEndModal(title, body, type = 'warning', showBackupBtn = true) {
@@ -453,16 +424,8 @@
         }
     }
 
-    function checkLowStock() {
-        inventory.forEach(item => {
-            if (item.qty <= 2 && item.qty > 0 && !notifiedItems.has(item.id + "_low")) {
-                showToast(`کاڵای (${item.name}) بڕەکەی کەمە: تەنها ${item.qty} دانە ماوە`, 'danger');
-                notifiedItems.add(item.id + "_low");
-            } else if (item.qty > 2) {
-                // ئەگەر بڕەکەی زیاد کرایەوە، لە لیستی ئاگادارییەکان دەریبهێنە بۆ جارێکی تر
-                notifiedItems.delete(item.id + "_low");
-            }
-        });
+    function hideLowStockAlertPermanently() {
+        document.getElementById('low-stock-alert-ui').style.display = 'none';
     }
 
     function findItemByBarcode(inputCode) {
