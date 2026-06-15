@@ -593,7 +593,6 @@
             if (finalCode.length >= 2) {
                 const item = findItemByBarcode(finalCode);
                 if (item) { addToCart(item.id); playBeep(); }
-                if (item) { addToCart(item.id); }
                 barcodeBuffer = ""; e.preventDefault();
             } else if (cart.length > 0) { completeSale(); }
         } else if (e.key.length === 1) {
